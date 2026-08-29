@@ -1,0 +1,311 @@
+:root {
+    --bg-color: #f5f5f7;
+    --text-color: #333;
+    --panel-bg: #fff;
+    --timer-red: #ff3b30;
+    --timer-green: #34c759;
+    --timer-bg: #e5e5ea;
+    --border-color: #d1d1d6;
+    --shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+/* UI Container Visibility */
+.ui-container {
+    display: none;
+    background: var(--panel-bg);
+    border-radius: 20px;
+    padding: 40px 20px;
+    box-shadow: var(--shadow);
+    justify-content: center;
+    align-items: center;
+}
+
+.ui-container.active {
+    display: flex;
+}
+
+/* Clock UI (TIME TIMER Style) */
+.clock-wrapper {
+    position: relative;
+    width: 300px;
+    height: 300px;
+}
+
+.clock-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg); /* Start at 12 o'clock */
+}
+
+.clock-bg {
+    fill: #fff;
+    stroke: var(--timer-bg);
+    stroke-width: 2;
+}
+
+.clock-progress {
+    fill: transparent;
+    stroke: var(--timer-red);
+    stroke-width: 45; /* 半径45に対して太さ45で中心まで塗りつぶす扇形風に */
+    stroke-dasharray: 282.74; /* 2 * PI * 45 */
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+}
+
+.clock-progress.break-mode {
+    stroke: var(--timer-green);
+}
+
+.mark-line {
+    stroke: #333;
+    stroke-width: 1;
+}
+
+.mark-text {
+    font-size: 6px;
+    fill: #333;
+    font-family: sans-serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+}
+
+.clock-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+#clock-time-display {
+    font-size: 28px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Meter UI (Visual Bar Timer Style) */
+.meter-wrapper {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.meter-track {
+    flex-grow: 1;
+    height: 40px;
+    background: var(--timer-bg);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+}
+
+.meter-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.1) 90%);
+    background-size: 10% 100%;
+    z-index: 2;
+}
+
+.meter-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: var(--timer-red);
+    z-index: 1;
+    transition: width 1s linear, background 0.3s ease;
+}
+
+.meter-fill.break-mode {
+    background: var(--timer-green);
+}
+
+.meter-label {
+    min-width: 60px;
+    text-align: right;
+}
+
+#meter-time-display {
+    font-size: 32px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+}
+
+.meter-unit {
+    font-size: 14px;
+    color: #666;
+    margin-left: 2px;
+}
+
+/* Controls Panel */
+.panel {
+    background: var(--panel-bg);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+}
+
+.status-indicator {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#current-status {
+    color: var(--timer-red);
+    font-size: 20px;
+}
+
+#current-status.break-mode {
+    color: var(--timer-green);
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #f0f0f0;
+    color: #333;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.btn:hover:not(:disabled) {
+    background: #e0e0e0;
+}
+
+.btn.primary {
+    background: var(--timer-red);
+    color: #fff;
+}
+
+.btn.primary.break-mode {
+    background: var(--timer-green);
+}
+
+.btn.primary:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.settings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 20px;
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 120px;
+}
+
+.setting-group label {
+    font-size: 14px;
+    color: #666;
+}
+
+.setting-group input, .setting-group select {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+/* === Responsive (Mobile) === */
+@media (max-width: 480px) {
+    body {
+        padding: 12px;
+    }
+    
+    header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .btn {
+        white-space: nowrap;
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+
+    .actions {
+        gap: 8px;
+    }
+
+    /* SVGサイズなども必要に応じて調整 */
+    #clock-progress {
+        transform-origin: center;
+    }
+}
