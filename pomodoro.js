@@ -298,8 +298,8 @@ function updateDisplay(instant = false) {
     const progressRatio = remainingSeconds / totalSeconds;
 
     // Clock Progress
-    // マイナス方向（-CIRCLE_CIRCUMFERENCE）に向かうことで、12時から時計回り（右側）に白い部分が増えていく動きになります
-    const offset = -(CIRCLE_CIRCUMFERENCE - (progressRatio * CIRCLE_CIRCUMFERENCE));
+    // プラス方向（CIRCLE_CIRCUMFERENCE）にオフセットを増やすことで、パスの始点（12時位置）から時計回りに消えていく（白い部分が増えていく）動きになります。
+    const offset = CIRCLE_CIRCUMFERENCE - (progressRatio * CIRCLE_CIRCUMFERENCE);
 
     if (instant) {
         clockProgress.style.transition = 'none';
