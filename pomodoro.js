@@ -3,6 +3,7 @@ const uiClock = document.getElementById('ui-clock');
 const uiMeter = document.getElementById('ui-meter');
 const toggleUiBtn = document.getElementById('toggle-ui-btn');
 
+const clockBase = document.getElementById('clock-base');
 const clockProgress = document.getElementById('clock-progress');
 const clockMarks = document.getElementById('clock-marks');
 const clockTimeDisplay = document.getElementById('clock-time-display');
@@ -299,7 +300,7 @@ function updateDisplay(instant = false) {
 
     // Clock Progress
     // プラス方向（CIRCLE_CIRCUMFERENCE）にオフセットを増やすことで、パスの始点（12時位置）から時計回りに消えていく（白い部分が増えていく）動きになります。
-    const offset = CIRCLE_CIRCUMFERENCE - (progressRatio * CIRCLE_CIRCUMFERENCE);
+    const offset = progressRatio * CIRCLE_CIRCUMFERENCE;
 
     if (instant) {
         clockProgress.style.transition = 'none';
@@ -337,13 +338,13 @@ function switchMode(isWork) {
     // Theme colors
     if (isWork) {
         currentStatusEl.classList.remove('break-mode');
-        clockProgress.classList.remove('break-mode');
+        clockBase.classList.remove('break-mode');
         meterFill.classList.remove('break-mode');
         startBtn.classList.remove('break-mode');
         if (isRunning) playNoise(bgmSelect.value);
     } else {
         currentStatusEl.classList.add('break-mode');
-        clockProgress.classList.add('break-mode');
+        clockBase.classList.add('break-mode');
         meterFill.classList.add('break-mode');
         startBtn.classList.add('break-mode');
         if (isRunning) playForestSound(); // 休憩用サウンド

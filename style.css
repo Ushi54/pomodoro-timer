@@ -80,17 +80,23 @@ h1 {
     stroke-width: 2;
 }
 
-.clock-progress {
+.clock-base {
     fill: transparent;
     stroke: var(--timer-red);
-    stroke-width: 45; /* 半径45に対して太さ45で中心まで塗りつぶす扇形風に */
-    stroke-dasharray: 282.74; /* 2 * PI * 45 */
-    stroke-dashoffset: 0;
-    transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+    stroke-width: 45;
 }
 
-.clock-progress.break-mode {
+.clock-base.break-mode {
     stroke: var(--timer-green);
+}
+
+.clock-progress-mask {
+    fill: transparent;
+    stroke: #fff; /* 背景と同じ白で上から塗りつぶす */
+    stroke-width: 46; /* 隙間ができないようにわずかに太くする */
+    stroke-dasharray: 282.74;
+    stroke-dashoffset: 282.74; /* 初期状態は透明(見えない) */
+    transition: stroke-dashoffset 1s linear;
 }
 
 .mark-line {
