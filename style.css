@@ -1,12 +1,12 @@
 :root {
-    --bg-color: #f5f5f7;
-    --text-color: #333;
-    --panel-bg: #fff;
-    --timer-red: #ff3b30;
-    --timer-green: #34c759;
-    --timer-bg: #e5e5ea;
-    --border-color: #d1d1d6;
-    --shadow: 0 4px 12px rgba(0,0,0,0.08);
+    --bg-color: #F5EFE1; /* color-D: Lightest Cream */
+    --text-color: #2D241E; /* 限りなく黒に近い茶色 */
+    --panel-bg: #FFFFFF; /* 白 */
+    --timer-red: #6F9B88; /* 作業中： color-A (Darkest Green) */
+    --timer-green: #C9A47B; /* 休憩中： color-G (Darkest Sand) */
+    --timer-bg: #EFE2CC; /* color-E: Light Warm Beige */
+    --border-color: #DCE5D2; /* color-C: Light Greenish Cream */
+    --shadow: 0 8px 24px rgba(45, 36, 30, 0.08);
 }
 
 * {
@@ -16,7 +16,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Nunito', 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
     display: flex;
@@ -35,7 +35,8 @@ body {
 
 main {
     background: var(--panel-bg);
-    border-radius: 20px;
+    border-radius: 36px;
+    border: 1px solid var(--border-color);
     box-shadow: var(--shadow);
     overflow: hidden;
 }
@@ -225,9 +226,9 @@ h1 {
 }
 
 .btn {
-    padding: 10px 20px;
+    padding: 12px 24px;
+    border-radius: 24px;
     border: none;
-    border-radius: 8px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
