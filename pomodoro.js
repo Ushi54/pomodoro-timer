@@ -398,7 +398,7 @@ function resetTimer() {
     pauseTimer();
     workTimeInput.disabled = false;
     breakTimeInput.disabled = false;
-    switchMode(isWorkMode); // Reload settings
+    switchMode(true); // 常に作業モードの初期状態にリセットする
 }
 
 // --- Event Listeners ---
