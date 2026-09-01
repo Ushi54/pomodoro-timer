@@ -19,7 +19,6 @@ const skipBtn = document.getElementById('skip-btn');
 
 const workTimeInput = document.getElementById('work-time');
 const breakTimeInput = document.getElementById('break-time');
-const bgmSelect = document.getElementById('bgm-select');
 
 // --- State ---
 let isClockUi = true;
@@ -345,7 +344,7 @@ function switchMode(isWork) {
         toggleTimerBtn.classList.remove('break-mode');
         skipBtn.classList.remove('break-mode');
         skipBtn.textContent = 'すぐ休憩に入る';
-        if (isRunning) playNoise(bgmSelect.value);
+        if (isRunning) playNoise('brown');
     } else {
         currentStatusEl.classList.add('break-mode');
         clockBase.classList.add('break-mode');
@@ -382,7 +381,7 @@ function startTimer() {
         breakTimeInput.disabled = true;
 
         if (isWorkMode) {
-            playNoise(bgmSelect.value);
+            playNoise('brown');
         } else {
             playForestSound();
         }
@@ -423,9 +422,6 @@ workTimeInput.addEventListener('change', () => {
 });
 breakTimeInput.addEventListener('change', () => {
     if (!isRunning && !isWorkMode) switchMode(false);
-});
-bgmSelect.addEventListener('change', () => {
-    if (isRunning && isWorkMode) playNoise(bgmSelect.value);
 });
 
 // Initialize
