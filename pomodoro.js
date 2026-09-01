@@ -13,8 +13,7 @@ const meterGrid = document.getElementById('meter-grid');
 const meterTimeDisplay = document.getElementById('meter-time-display');
 
 const currentStatusEl = document.getElementById('current-status');
-const startBtn = document.getElementById('start-btn');
-const pauseBtn = document.getElementById('pause-btn');
+const toggleTimerBtn = document.getElementById('toggle-timer-btn');
 const resetBtn = document.getElementById('reset-btn');
 const skipBtn = document.getElementById('skip-btn');
 
@@ -330,6 +329,8 @@ function updateDisplay(instant = false) {
 
 function switchMode(isWork) {
     isWorkMode = isWork;
+    if (typeof toggleTimerBtn !== 'undefined') toggleTimerBtn.textContent = 'スタート';
+    if (toggleTimerBtn) toggleTimerBtn.textContent = 'スタート';
     const mins = isWork ? parseInt(workTimeInput.value) : parseInt(breakTimeInput.value);
     totalSeconds = mins * 60;
     remainingSeconds = totalSeconds;
@@ -341,7 +342,7 @@ function switchMode(isWork) {
         currentStatusEl.classList.remove('break-mode');
         clockBase.classList.remove('break-mode');
         meterFill.classList.remove('break-mode');
-        startBtn.classList.remove('break-mode');
+        toggleTimerBtn.classList.remove('break-mode');
         skipBtn.classList.remove('break-mode');
         skipBtn.textContent = 'すぐ休憩に入る';
         if (isRunning) playNoise(bgmSelect.value);
@@ -349,7 +350,7 @@ function switchMode(isWork) {
         currentStatusEl.classList.add('break-mode');
         clockBase.classList.add('break-mode');
         meterFill.classList.add('break-mode');
-        startBtn.classList.add('break-mode');
+        toggleTimerBtn.classList.add('break-mode');
         skipBtn.classList.add('break-mode');
         skipBtn.textContent = 'すぐ作業を始める';
         if (isRunning) playForestSound(); // 休憩用サウンド
@@ -376,8 +377,7 @@ function startTimer() {
     if (!isRunning) {
         isRunning = true;
         timerInterval = setInterval(tick, 1000);
-        startBtn.disabled = true;
-        pauseBtn.disabled = false;
+        toggleTimerBtn.textContent = '一時停止';
         workTimeInput.disabled = true;
         breakTimeInput.disabled = true;
 
@@ -393,8 +393,7 @@ function pauseTimer() {
     if (isRunning) {
         isRunning = false;
         clearInterval(timerInterval);
-        startBtn.disabled = false;
-        pauseBtn.disabled = true;
+        toggleTimerBtn.textContent = 'スタート';
         stopAudio();
     }
 }
@@ -415,8 +414,7 @@ function skipMode() {
 
 // --- Event Listeners ---
 toggleUiBtn.addEventListener('click', toggleUI);
-startBtn.addEventListener('click', startTimer);
-pauseBtn.addEventListener('click', pauseTimer);
+toggleTimerBtn.addEventListener('click', () => { if (isRunning) pauseTimer(); else startTimer(); });
 resetBtn.addEventListener('click', resetTimer);
 skipBtn.addEventListener('click', skipMode);
 
