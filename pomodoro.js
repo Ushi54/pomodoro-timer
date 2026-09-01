@@ -16,6 +16,7 @@ const currentStatusEl = document.getElementById('current-status');
 const startBtn = document.getElementById('start-btn');
 const pauseBtn = document.getElementById('pause-btn');
 const resetBtn = document.getElementById('reset-btn');
+const skipBtn = document.getElementById('skip-btn');
 
 const workTimeInput = document.getElementById('work-time');
 const breakTimeInput = document.getElementById('break-time');
@@ -341,12 +342,16 @@ function switchMode(isWork) {
         clockBase.classList.remove('break-mode');
         meterFill.classList.remove('break-mode');
         startBtn.classList.remove('break-mode');
+        skipBtn.classList.remove('break-mode');
+        skipBtn.textContent = 'すぐ休憩に入る';
         if (isRunning) playNoise(bgmSelect.value);
     } else {
         currentStatusEl.classList.add('break-mode');
         clockBase.classList.add('break-mode');
         meterFill.classList.add('break-mode');
         startBtn.classList.add('break-mode');
+        skipBtn.classList.add('break-mode');
+        skipBtn.textContent = 'すぐ作業を始める';
         if (isRunning) playForestSound(); // 休憩用サウンド
     }
 
@@ -398,7 +403,14 @@ function resetTimer() {
     pauseTimer();
     workTimeInput.disabled = false;
     breakTimeInput.disabled = false;
-    switchMode(true); // 常に作業モードの初期状態にリセットする
+    switchMode(isWorkMode); // 現在のモードのままリセット
+}
+
+function skipMode() {
+    pauseTimer();
+    workTimeInput.disabled = false;
+    breakTimeInput.disabled = false;
+    switchMode(!isWorkMode); // 逆のモードに切り替える
 }
 
 // --- Event Listeners ---
@@ -406,6 +418,7 @@ toggleUiBtn.addEventListener('click', toggleUI);
 startBtn.addEventListener('click', startTimer);
 pauseBtn.addEventListener('click', pauseTimer);
 resetBtn.addEventListener('click', resetTimer);
+skipBtn.addEventListener('click', skipMode);
 
 workTimeInput.addEventListener('change', () => {
     if (!isRunning && isWorkMode) switchMode(true);
