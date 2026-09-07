@@ -71,36 +71,35 @@ h1 {
     position: relative;
     width: 300px;
     height: 300px;
+    border-radius: 2px;
 }
 
 .clock-svg {
     width: 100%;
     height: 100%;
     transform: rotate(-90deg); /* Start at 12 o'clock */
+    border-radius: 2px;
 }
 
 .clock-bg {
-    fill: #fff;
-    stroke: var(--timer-bg);
-    stroke-width: 2;
+    display: none;
 }
 
 .clock-base {
-    fill: transparent;
-    stroke: var(--timer-red);
-    stroke-width: 45;
+    fill: var(--timer-red);
+    stroke: none;
 }
 
 .clock-base.break-mode {
-    stroke: var(--timer-green);
+    fill: var(--timer-green);
 }
 
 .clock-progress-mask {
     fill: transparent;
-    stroke: #fff; /* 背景と同じ白で上から塗りつぶす */
-    stroke-width: 46; /* 隙間ができないようにわずかに太くする */
-    stroke-dasharray: 282.74;
-    stroke-dashoffset: 282.74; /* 初期状態は透明(見えない) */
+    stroke: var(--panel-bg); 
+    stroke-width: 100; 
+    stroke-dasharray: 314.16;
+    stroke-dashoffset: 314.16; 
     transition: stroke-dashoffset 1s linear;
 }
 

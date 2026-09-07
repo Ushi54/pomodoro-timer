@@ -30,7 +30,7 @@ let totalSeconds = 25 * 60;
 let remainingSeconds = 25 * 60;
 
 // SVG Constants
-const CIRCLE_RADIUS = 45;
+const CIRCLE_RADIUS = 50;
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 
 // --- Audio System (Web Audio API) ---
