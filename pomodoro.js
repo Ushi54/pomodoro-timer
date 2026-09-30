@@ -1,6 +1,6 @@
 // --- DOM Elements ---
 const viewButtons = document.querySelectorAll('.view-switch__btn');
-const views = { plate: document.getElementById('view-plate'), bar: document.getElementById('view-bar'), glass: document.getElementById('view-glass'), sky: document.getElementById('view-sky'), balls: document.getElementById('view-balls') };
+const views = { plate: document.getElementById('view-plate'), bar: document.getElementById('view-bar'), glass: document.getElementById('view-glass'), sky: document.getElementById('view-sky'), scene: document.getElementById('view-scene') };
 
 const plateWedge = document.getElementById('plate-wedge');
 const plateTime = document.getElementById('plate-time');
@@ -24,23 +24,14 @@ const skyTime = document.getElementById('sky-time');
 const skyPhase = document.getElementById('sky-phase');
 const SKY = { cx: 160, cy: 160, r: 120 };
 
-const ballsCanvas = document.getElementById('balls-canvas');
-const ballsCtx = ballsCanvas.getContext('2d');
-const ballsTime = document.getElementById('balls-time');
-const ballsPhase = document.getElementById('balls-phase');
+const sceneCanvas = document.getElementById('scene-canvas');
+const sceneCtx = sceneCanvas.getContext('2d');
+const sceneTime = document.getElementById('scene-time');
+const scenePhase = document.getElementById('scene-phase');
 const BOX = { w: 320, h: 220 };
-const BALL_SPEED = 110;              // 1秒に進む距離（箱の大きさ基準）。速さは分数に関係なく一定
-const BALL_FILL = 0.62;              // 満杯＝箱の面積の約6割をボールが占める状態（見た目にぎっしり。これ以上だと動けなくなる）
-// 集中中は緑系、休憩に入るとそれぞれ対応する茶系に色が変わる（color-A→G、color-B→F）
-const BALL_TONES = { work: [[0x6F, 0x9B, 0x88], [0xA3, 0xC2, 0xAD]], break: [[0xC9, 0xA4, 0x7B], [0xE0, 0xC6, 0xA5]] };
-const TONE_SHIFT_MS = 800;           // 緑→茶に変わる時間
+const TONE_SHIFT_MS = 800;           // 休憩に入った時、緑→茶に変わる時間
 let toneShiftAt = 0;                 // 休憩に入った時刻
-let balls = [];
-let ballTarget = 100;                // 満杯になる時のボールの数
-let ballR = 10;
-let pops = [];                       // 弾けている最中のボール（休憩中）
-const POP_MS = 450;                  // 弾けるアニメーションの長さ
-let lastFrameAt = 0;
+let sceneName = 'plant';             // キャンバスで描いている表示
 
 const liveStatus = document.getElementById('live-status');
 const toggleTimerBtn = document.getElementById('toggle-timer-btn');
@@ -241,12 +232,25 @@ function playModeSound() {
     else playForestSound();
 }
 
-// --- 表示の切り替え（円 / バー） ---
+// --- 表示の切り替え ---
+// 植物・ろうそく・コーヒー・本・ドラムは、同じキャンバス（view-scene）で描き分ける
 function setView(name) {
-    Object.entries(views).forEach(([key, el]) => el.classList.toggle('is-active', key === name));
-    viewButtons.forEach((btn) => btn.setAttribute('aria-pressed', String(btn.dataset.view === name)));
+    const isScene = SCENES.includes(name);
+    if (isScene) sceneName = name;
+    Object.entries(views).forEach(([key, el]) => el.classList.toggle('is-active', key === (isScene ? 'scene' : name)));
+    viewButtons.forEach((btn) => {
+        const on = btn.dataset.view === name;
+        btn.setAttribute('aria-pressed', String(on));
+        // 横スクロールの外に隠れていたら、見える位置まで動かす
+        if (on) btn.parentElement.scrollLeft = Math.max(0, btn.offsetLeft - btn.parentElement.clientWidth / 2 + btn.offsetWidth / 2);
+    });
     try { localStorage.setItem('pomodoro-view', name); } catch (e) {}
-    if (name === 'balls') { syncScene(); renderShapes(); }
+    if (isScene) { sceneCanvas.setAttribute('aria-label', `${viewLabel(name)}のタイマー`); syncScene(); renderShapes(); }
+}
+
+function viewLabel(name) {
+    const btn = [...viewButtons].find((b) => b.dataset.view === name);
+    return btn ? btn.textContent : '';
 }
 
 // --- 円：扇形（残り時間）とドット（1分ごと） ---
@@ -354,180 +358,536 @@ function buildStars() {
     }
 }
 
-// --- ボール：分数が短いほど大きく少なく、長いほど小さく多く。時間ちょうどで箱が埋まる ---
-const BALL_EVERY_MS = 10000; // 10秒ごとに1個増える
+// --- キャンバスで描く表示（植物・ろうそく・コーヒー・本・ドラム） ---
+// どれも 320×220 の箱の中に描く。集中は緑系、休憩は茶系。休憩に入ると0.8秒かけて色が変わる。
+const SCENES = ['plant', 'candle', 'coffee', 'book', 'drum'];
+const C = {
+    white: '#FFFFFF', ink: '#2D241E',
+    sage: '#6F9B88', sageSoft: '#A3C2AD', sageMist: '#DCE5D2',
+    sandMist: '#EFE2CC', sandSoft: '#E0C6A5', sand: '#C9A47B',
+};
 
-function configureBalls(minutes) {
-    // 最初の1個＋10秒ごとに1個。最後の10秒の間は「いっぱい」の状態を見せたいので、
-    // 終了10秒前に出る1個で箱が埋まるように大きさを決める → 1分=6個、5分=30個、20分=120個、25分=150個
-    ballTarget = Math.ceil((minutes * 60000) / BALL_EVERY_MS);
-    // 面積から出した大きさと、「N個を格子状に並べても少し余裕がある大きさ」の小さい方を使う
-    // （ボールが少なく大きい時に、重ならずに動ける余地を残すため）
-    const byArea = Math.sqrt((BALL_FILL * BOX.w * BOX.h) / (Math.PI * ballTarget));
-    let byGrid = 0;
-    for (let cols = 1; cols <= ballTarget; cols++) {
-        const rows = Math.ceil(ballTarget / cols);
-        byGrid = Math.max(byGrid, Math.min(BOX.w / (2 * cols), BOX.h / (2 * rows)));
-    }
-    ballR = Math.min(byArea, byGrid * 0.85);
+function hexRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function addBall(x, y, inwardX = 0, inwardY = 0) {
-    let a = Math.random() * Math.PI * 2;
-    let vx = Math.cos(a) * BALL_SPEED;
-    let vy = Math.sin(a) * BALL_SPEED;
-    // 壁で生まれたボールは、箱の内側に向かって飛び出す
-    if (inwardX && Math.sign(vx) !== inwardX) vx = -vx;
-    if (inwardY && Math.sign(vy) !== inwardY) vy = -vy;
-    balls.push({
-        x: Math.min(BOX.w - ballR, Math.max(ballR, x)),
-        y: Math.min(BOX.h - ballR, Math.max(ballR, y)),
-        vx, vy,
-        tone: Math.floor(Math.random() * 2),
+function mix(a, b, k) {
+    const x = hexRgb(a), y = hexRgb(b);
+    return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * k)).join(', ')})`;
+}
+
+// 0 = 集中の色、1 = 休憩の色
+function toneK() {
+    return isWorkMode ? 0 : Math.min(1, (performance.now() - toneShiftAt) / TONE_SHIFT_MS);
+}
+
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+function resetScene() {
+    leafFallAt = {};
+    if (!isWorkMode) toneShiftAt = performance.now();
+    syncScene();
+}
+
+// 途中から表示を切り替えた時などは、もう落ちているはずの葉を最初から「落ちた後」にしておく
+function syncScene() {
+    const ratio = Math.min(1, currentRemaining() / totalMs);
+    if (isWorkMode) return;
+    const remaining = Math.ceil(ratio * LEAF_COUNT);
+    LEAF_ORDER.forEach((leaf, rank) => {
+        if (rank < LEAF_COUNT - remaining && !(leaf in leafFallAt)) leafFallAt[leaf] = -Infinity;
     });
 }
 
-function resetScene() {
-    pops = [];
-    if (isWorkMode) {
-        balls = [];
-        addBall(BOX.w / 2, BOX.h / 2);
-        return;
-    }
-    // 休憩：集中中に集めたボールをそのまま使い、足りない時（途中で休憩に入った等）は箱いっぱいまで足す
-    while (balls.length < ballTarget) addBallFromWall();
-    toneShiftAt = performance.now();
-}
-
-function ballColor(b) {
-    const k = isWorkMode ? 0 : Math.min(1, (performance.now() - toneShiftAt) / TONE_SHIFT_MS);
-    const from = BALL_TONES.work[b.tone], to = BALL_TONES.break[b.tone];
-    const [r, g, bl] = from.map((v, i) => Math.round(v + (to[i] - v) * k));
-    return `rgb(${r}, ${g}, ${bl})`;
-}
-
-function ballsWanted(ratio) {
-    // 休憩：いっぱいの状態から一定の間隔で1個ずつ減り、終わりにちょうど0個
-    if (!isWorkMode) return Math.ceil(ratio * ballTarget);
-    const elapsed = (1 - ratio) * totalMs;
-    return Math.min(ballTarget, 1 + Math.floor(elapsed / BALL_EVERY_MS));
-}
-
-// ランダムに1個選んで弾けさせる
-function popBall(animate = true) {
-    const i = Math.floor(Math.random() * balls.length);
-    const [b] = balls.splice(i, 1);
-    if (animate) pops.push({ x: b.x, y: b.y, c: ballColor(b), t0: performance.now() });
-}
-
-// 箱のふちのどこかから、内側に向かって新しいボールを出す
-function addBallFromWall() {
-    const side = Math.floor(Math.random() * 4);
-    const along = Math.random();
-    if (side === 0) addBall(ballR, along * BOX.h, 1, 0);
-    else if (side === 1) addBall(BOX.w - ballR, along * BOX.h, -1, 0);
-    else if (side === 2) addBall(along * BOX.w, ballR, 0, 1);
-    else addBall(along * BOX.w, BOX.h - ballR, 0, -1);
-}
-
-function stepBalls(dt, ratio) {
-    for (const b of balls) {
-        b.x += b.vx * dt;
-        b.y += b.vy * dt;
-        if (b.x < ballR) { b.x = ballR; b.vx = Math.abs(b.vx); }
-        if (b.x > BOX.w - ballR) { b.x = BOX.w - ballR; b.vx = -Math.abs(b.vx); }
-        if (b.y < ballR) { b.y = ballR; b.vy = Math.abs(b.vy); }
-        if (b.y > BOX.h - ballR) { b.y = BOX.h - ballR; b.vy = -Math.abs(b.vy); }
-    }
-
-    // ボール同士の衝突（重なったら押し戻し、ぶつかる向きの速度を入れ替える）
-    // 混み合うと1回では押し戻しきれないので、1フレームに3回くり返す
-    const d2 = (2 * ballR) * (2 * ballR);
-    for (let pass = 0; pass < 3; pass++) {
-    for (let i = 0; i < balls.length; i++) {
-        const a = balls[i];
-        for (let j = i + 1; j < balls.length; j++) {
-            const b = balls[j];
-            const dx = b.x - a.x, dy = b.y - a.y;
-            const dist2 = dx * dx + dy * dy;
-            if (dist2 >= d2 || dist2 === 0) continue;
-            const dist = Math.sqrt(dist2);
-            const nx = dx / dist, ny = dy / dist;
-            const push = (2 * ballR - dist) / 2;
-            a.x -= nx * push; a.y -= ny * push;
-            b.x += nx * push; b.y += ny * push;
-            const rel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
-            if (rel > 0) {
-                a.vx -= rel * nx; a.vy -= rel * ny;
-                b.vx += rel * nx; b.vy += rel * ny;
-            }
-        }
-    }
-    for (const b of balls) {
-        b.x = Math.min(BOX.w - ballR, Math.max(ballR, b.x));
-        b.y = Math.min(BOX.h - ballR, Math.max(ballR, b.y));
-    }
-    }
-
-    // 集中：10秒ごとに1個増える／休憩：1個ずつ弾けて減る
-    // （タブを裏にしていた等で遅れた時は、まとめて追いつく）
-    const want = ballsWanted(ratio);
-    while (balls.length < want) addBallFromWall();
-    while (balls.length > want) popBall();
-}
-
 function sizeCanvas() {
-    const rect = ballsCanvas.getBoundingClientRect();
+    const rect = sceneCanvas.getBoundingClientRect();
     if (!rect.width) return false;
     const dpr = window.devicePixelRatio || 1;
     const w = Math.round(rect.width * dpr);
     const h = Math.round(rect.height * dpr);
-    if (ballsCanvas.width !== w || ballsCanvas.height !== h) {
-        ballsCanvas.width = w;
-        ballsCanvas.height = h;
+    if (sceneCanvas.width !== w || sceneCanvas.height !== h) {
+        sceneCanvas.width = w;
+        sceneCanvas.height = h;
     }
-    ballsCtx.setTransform(w / BOX.w, 0, 0, h / BOX.h, 0, 0);
+    sceneCtx.setTransform(w / BOX.w, 0, 0, h / BOX.h, 0, 0);
     return true;
 }
 
 function drawScene(ratio) {
-    if (!views.balls.classList.contains('is-active') || !sizeCanvas()) return;
-    const ctx = ballsCtx;
+    if (!views.scene.classList.contains('is-active') || !sizeCanvas()) return;
+    const ctx = sceneCtx;
     ctx.clearRect(0, 0, BOX.w, BOX.h);
-    for (const b of balls) {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, ballR, 0, Math.PI * 2);
-        ctx.fillStyle = ballColor(b);
-        ctx.fill();
-    }
-    // 弾けたボール：ふくらみながら薄くなる輪と、外に飛び散る小さなしぶき
-    const now = performance.now();
-    pops = pops.filter((p) => now - p.t0 < POP_MS);
-    for (const p of pops) {
-        const k = (now - p.t0) / POP_MS;
-        ctx.globalAlpha = 1 - k;
-        ctx.strokeStyle = p.c;
-        ctx.lineWidth = Math.max(1, ballR * 0.25 * (1 - k));
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, ballR * (1 + 0.7 * k), 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = p.c;
-        for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2;
-            const d = ballR * (1.1 + 1.1 * k);
-            ctx.beginPath();
-            ctx.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, Math.max(0.8, ballR * 0.14 * (1 - k)), 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-    ctx.globalAlpha = 1;
+    const t = performance.now() / 1000;
+    if (sceneName === 'plant') drawPlant(ctx, ratio);
+    else if (sceneName === 'candle') drawCandle(ctx, ratio, t);
+    else if (sceneName === 'coffee') drawCoffee(ctx, ratio, t);
+    else if (sceneName === 'book') drawBook(ctx, ratio, t);
+    else if (sceneName === 'drum') drawDrum(ctx, ratio, t);
 }
 
-function syncScene() {
-    // 途中から「ボール」に切り替えた時などは、今の進み具合までボールの数をそろえておく
-    const want = ballsWanted(Math.min(1, currentRemaining() / totalMs));
-    while (balls.length < want) addBallFromWall();
-    while (balls.length > want) popBall(false);
+// なめらかに揺れる線（湯気・煙）
+function wisp(ctx, x0, yBottom, height, phase, t, amp) {
+    ctx.beginPath();
+    for (let i = 0; i <= 24; i++) {
+        const k = i / 24;
+        const y = yBottom - k * height;
+        const x = x0 + Math.sin(k * 5 + t * 1.6 + phase) * amp * k;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+}
+
+// --- 植物：集中＝芽が伸びて葉が増え、最後に花が咲く／休憩＝葉が茶色になって1枚ずつ散る ---
+const LEAF_COUNT = 8;
+const LEAF_ORDER = [7, 2, 5, 0, 6, 3, 1, 4]; // 散る順番
+const LEAF_FALL_MS = 2400;
+const PLANT = { x: 160, base: 176, maxH: 128 };
+let leafFallAt = {};
+
+function stemX(y) {
+    // 茎は少しだけ曲げる
+    const k = (PLANT.base - y) / PLANT.maxH;
+    return PLANT.x + Math.sin(k * Math.PI) * 6;
+}
+
+function drawLeaf(ctx, x, y, angle, len, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(len * 0.5, -len * 0.38, len, 0);
+    ctx.quadraticCurveTo(len * 0.5, len * 0.38, 0, 0);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawPlant(ctx, ratio) {
+    const k = toneK();
+    const grow = isWorkMode ? 1 - ratio : 1; // 休憩中は育ちきった姿から
+    const stemH = PLANT.maxH * clamp01(grow / 0.88);
+    const top = PLANT.base - stemH;
+
+    // 茎
+    ctx.strokeStyle = mix(C.sage, C.sand, k);
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let y = PLANT.base; y >= top; y -= 2) {
+        if (y === PLANT.base) ctx.moveTo(stemX(y), y); else ctx.lineTo(stemX(y), y);
+    }
+    ctx.stroke();
+
+    // 葉
+    const now = performance.now();
+    const remaining = Math.ceil(ratio * LEAF_COUNT);
+    for (let i = 0; i < LEAF_COUNT; i++) {
+        const h = PLANT.maxH * (0.12 + 0.72 * (i / (LEAF_COUNT - 1)));
+        const scale = clamp01((stemH - h) / 16);
+        if (scale <= 0) continue;
+        const side = i % 2 ? 1 : -1;
+        const y = PLANT.base - h;
+        const x = stemX(y);
+        const len = (34 - i * 1.6) * scale;
+        const angle = side > 0 ? -0.5 : Math.PI + 0.5;
+        const color = i % 2
+            ? mix(C.sage, C.sand, k)
+            : mix(C.sageSoft, C.sandSoft, k);
+
+        const rank = LEAF_ORDER.indexOf(i);
+        const fallen = !isWorkMode && rank < LEAF_COUNT - remaining;
+        if (!fallen) { drawLeaf(ctx, x, y, angle, len, color); continue; }
+
+        if (!(i in leafFallAt)) leafFallAt[i] = now;
+        const f = (now - leafFallAt[i]) / LEAF_FALL_MS;
+        if (f >= 1) continue;
+        // ひらひらと地面まで落ちて、最後に薄くなって消える
+        const fy = y + (PLANT.base + 20 - y) * Math.min(1, f / 0.8);
+        const fx = x + side * 18 * f + Math.sin(f * 9) * 10;
+        ctx.globalAlpha = f < 0.8 ? 1 : 1 - (f - 0.8) / 0.2;
+        drawLeaf(ctx, fx, fy, angle + Math.sin(f * 7) * 0.8, len, color);
+        ctx.globalAlpha = 1;
+    }
+
+    // 花（集中の最後に開く。休憩中は咲いたまま茶色になる）
+    const bloom = clamp01((grow - 0.88) / 0.12);
+    if (bloom > 0) {
+        const fx = stemX(top), fy = top - 4;
+        ctx.fillStyle = mix(C.sandSoft, C.sandMist, k);
+        for (let p = 0; p < 6; p++) {
+            const a = (p / 6) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.ellipse(fx + Math.cos(a) * 9 * bloom, fy + Math.sin(a) * 9 * bloom, 7 * bloom, 4.5 * bloom, a, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = C.sand;
+        ctx.beginPath();
+        ctx.arc(fx, fy, 5 * bloom, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 鉢
+    ctx.fillStyle = C.sand;
+    ctx.beginPath();
+    ctx.moveTo(126, 176); ctx.lineTo(194, 176); ctx.lineTo(184, 212); ctx.lineTo(136, 212);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = C.sandSoft;
+    ctx.beginPath();
+    ctx.roundRect(120, 170, 80, 12, 4);
+    ctx.fill();
+}
+
+// --- ろうそく：集中＝火がゆらぎながら短くなる／休憩＝火が消え、煙が細くなって消える ---
+function drawCandle(ctx, ratio, t) {
+    const k = toneK();
+    const bodyH = isWorkMode ? 16 + 116 * ratio : 16;
+    const bottom = 190;
+    const top = bottom - bodyH;
+    const cx = 160;
+
+    // 火の明かり（集中中だけ）
+    if (isWorkMode) {
+        const g = ctx.createRadialGradient(cx, top - 18, 2, cx, top - 18, 70);
+        g.addColorStop(0, 'rgba(224, 198, 165, 0.55)');
+        g.addColorStop(1, 'rgba(224, 198, 165, 0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, BOX.w, BOX.h);
+    }
+
+    // 燭台
+    ctx.fillStyle = mix(C.sageSoft, C.sandSoft, k);
+    ctx.beginPath();
+    ctx.ellipse(cx, bottom + 6, 58, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ろうそく本体
+    ctx.fillStyle = mix(C.sageMist, C.sandMist, k);
+    ctx.strokeStyle = mix(C.sageSoft, C.sandSoft, k);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(cx - 22, top, 44, bodyH, [6, 6, 3, 3]);
+    ctx.fill();
+    ctx.stroke();
+
+    // 芯
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(cx, top - 7);
+    ctx.stroke();
+
+    if (isWorkMode) {
+        // 炎：高さと先端が少しずつゆらぐ
+        const h = 28 + Math.sin(t * 9) * 2.5 + Math.sin(t * 23) * 1.5;
+        const sway = Math.sin(t * 3.1) * 2.5;
+        const base = top - 6;
+        const flame = (w, hh, color) => {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(cx + sway, base - hh);
+            ctx.bezierCurveTo(cx + w, base - hh * 0.45, cx + w, base, cx, base);
+            ctx.bezierCurveTo(cx - w, base, cx - w, base - hh * 0.45, cx + sway, base - hh);
+            ctx.fill();
+        };
+        flame(11, h, C.sand);
+        flame(6, h * 0.6, C.sandMist);
+    } else {
+        // 煙：休憩の残りが少ないほど薄くなる
+        ctx.strokeStyle = C.ink;
+        ctx.lineWidth = 1.6;
+        for (let s = 0; s < 3; s++) {
+            ctx.globalAlpha = 0.3 * ratio;
+            wisp(ctx, cx + (s - 1) * 3, top - 8, 110 - s * 18, s * 2.1, t, 12 + s * 4);
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+// --- コーヒー：集中＝ドリッパーから落ちて、カップにたまる／休憩＝湯気を立てながら減る ---
+function drawCoffee(ctx, ratio, t) {
+    const k = toneK();
+    const level = isWorkMode ? 1 - ratio : ratio;
+    const cup = { l: 112, r: 208, top: 96, bottom: 188 };
+
+    // 受け皿
+    ctx.fillStyle = mix(C.sageMist, C.sandMist, k);
+    ctx.beginPath();
+    ctx.ellipse(160, 194, 84, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const cupPath = () => {
+        ctx.beginPath();
+        ctx.moveTo(cup.l, cup.top);
+        ctx.lineTo(cup.r, cup.top);
+        ctx.lineTo(cup.r - 6, cup.bottom - 16);
+        ctx.quadraticCurveTo(cup.r - 10, cup.bottom, cup.r - 26, cup.bottom);
+        ctx.lineTo(cup.l + 26, cup.bottom);
+        ctx.quadraticCurveTo(cup.l + 10, cup.bottom, cup.l + 6, cup.bottom - 16);
+        ctx.closePath();
+    };
+
+    // 取っ手
+    ctx.strokeStyle = mix(C.sage, C.sand, k);
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(cup.r + 4, 136, 18, -Math.PI / 2.4, Math.PI / 2.4);
+    ctx.stroke();
+
+    // カップの中身
+    ctx.fillStyle = C.white;
+    cupPath();
+    ctx.fill();
+    ctx.save();
+    cupPath();
+    ctx.clip();
+    const surface = cup.bottom - (cup.bottom - cup.top - 8) * level;
+    ctx.fillStyle = C.sand;
+    ctx.fillRect(cup.l, surface, cup.r - cup.l, cup.bottom - surface);
+    if (level > 0.02) {
+        ctx.fillStyle = C.sandSoft;
+        ctx.beginPath();
+        ctx.ellipse(160, surface, 46, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+    ctx.strokeStyle = mix(C.sage, C.sand, k);
+    ctx.lineWidth = 3;
+    cupPath();
+    ctx.stroke();
+
+    if (isWorkMode) {
+        // ドリッパーと、落ちるしずく
+        ctx.fillStyle = mix(C.sageSoft, C.sandSoft, k);
+        ctx.beginPath();
+        ctx.moveTo(122, 24); ctx.lineTo(198, 24); ctx.lineTo(170, 64); ctx.lineTo(150, 64);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillRect(116, 64, 88, 6);
+        ctx.fillStyle = C.sand;
+        for (let d = 0; d < 2; d++) {
+            const f = (t * 1.4 + d * 0.5) % 1;
+            const y = 72 + (surface - 72) * f;
+            ctx.beginPath();
+            ctx.ellipse(160, y, 2.4, 3.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (level > 0.02) {
+        // 湯気（残りが少ないほど弱く）
+        ctx.strokeStyle = C.sand;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        for (let s = 0; s < 3; s++) {
+            ctx.globalAlpha = 0.5 * Math.min(1, level * 2);
+            wisp(ctx, 140 + s * 20, 86, 50 + s * 6, s * 1.7, t, 8);
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+// --- 本：集中＝ページが1枚ずつめくれて右の束が薄くなる／休憩＝本を閉じて、しおりが揺れる ---
+const PAGE_COUNT = 20;
+const FLIP_MS = 900;
+
+function drawPageLines(ctx, x, y, w) {
+    ctx.strokeStyle = C.sageMist;
+    ctx.lineWidth = 2;
+    for (let r = 0; r < 8; r++) {
+        const ly = y + 18 + r * 13;
+        ctx.beginPath();
+        ctx.moveTo(x + 12, ly);
+        ctx.lineTo(x + w - 12 - (r === 7 ? 30 : 0), ly);
+        ctx.stroke();
+    }
+}
+
+function drawBook(ctx, ratio, t) {
+    const k = toneK();
+    if (!isWorkMode) {
+        // 閉じた本としおり
+        const sway = Math.sin(t * 1.3) * 7;
+        ctx.strokeStyle = mix(C.sage, C.sand, k);
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(192, 180);
+        ctx.quadraticCurveTo(192 + sway * 0.4, 198, 192 + sway, 212);
+        ctx.stroke();
+        ctx.fillStyle = C.sandMist;
+        ctx.beginPath();
+        ctx.roundRect(112, 34, 102, 150, 4);
+        ctx.fill();
+        ctx.fillStyle = mix(C.sage, C.sand, k);
+        ctx.beginPath();
+        ctx.roundRect(104, 30, 104, 150, 6);
+        ctx.fill();
+        ctx.fillStyle = mix(C.sageSoft, C.sandSoft, k);
+        ctx.fillRect(104, 30, 12, 150);
+        ctx.fillRect(130, 70, 56, 4);
+        ctx.fillRect(130, 80, 40, 4);
+        return;
+    }
+
+    const progress = (1 - ratio) * PAGE_COUNT;
+    const flipped = Math.floor(progress);
+    const sinceFlip = (progress - flipped) * (totalMs / PAGE_COUNT);
+    const flipping = flipped > 0 && sinceFlip < FLIP_MS;
+    const leftCount = flipping ? flipped - 1 : flipped;
+    const rightCount = PAGE_COUNT - flipped;
+    const page = { top: 44, h: 140, w: 110, spine: 160 };
+
+    // 表紙
+    ctx.fillStyle = mix(C.sage, C.sand, k);
+    ctx.beginPath();
+    ctx.roundRect(page.spine - page.w - 12, page.top - 6, (page.w + 12) * 2, page.h + 16, 8);
+    ctx.fill();
+
+    // ページの束（残りが多いほど厚い）
+    const stack = (count, dir) => {
+        const layers = Math.ceil(count / 2);
+        for (let j = layers; j >= 0; j--) {
+            const x = dir < 0 ? page.spine - page.w - j * 0.6 : page.spine + j * 0.6;
+            ctx.fillStyle = j === 0 ? C.white : C.sandMist;
+            ctx.strokeStyle = C.sandSoft;
+            ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.rect(x, page.top + j * 0.6, page.w, page.h);
+            ctx.fill();
+            ctx.stroke();
+        }
+    };
+    stack(leftCount, -1);
+    stack(rightCount, 1);
+    if (leftCount > 0) drawPageLines(ctx, page.spine - page.w, page.top, page.w);
+    if (rightCount > 0) drawPageLines(ctx, page.spine, page.top, page.w);
+
+    // めくれている1枚（右から左へ）
+    if (flipping) {
+        const f = sinceFlip / FLIP_MS;
+        const e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+        const xEnd = page.spine + page.w * Math.cos(Math.PI * e);
+        const lift = Math.sin(Math.PI * e) * 10;
+        ctx.fillStyle = C.white;
+        ctx.strokeStyle = C.sandSoft;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(page.spine, page.top);
+        ctx.lineTo(xEnd, page.top - lift);
+        ctx.lineTo(xEnd, page.top + page.h - lift);
+        ctx.lineTo(page.spine, page.top + page.h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    // 綴じ目
+    ctx.strokeStyle = C.sandSoft;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(page.spine, page.top);
+    ctx.lineTo(page.spine, page.top + page.h);
+    ctx.stroke();
+}
+
+// --- ドラム：集中＝16分の1ずつ進む1小節のパターン／休憩＝テンポを落とした4分音符 ---
+const DRUM_ROWS = [
+    { label: 'HH', hits: [0, 2, 4, 6, 8, 10, 12, 14] },
+    { label: 'SD', hits: [4, 12] },
+    { label: 'BD', hits: [0, 7, 8, 10] },
+];
+
+function drawDrum(ctx, ratio, t) {
+    const k = toneK();
+    const on = mix(C.sage, C.sand, k);
+    const soft = mix(C.sageSoft, C.sandSoft, k);
+    const mist = mix(C.sageMist, C.sandMist, k);
+    const progress = 1 - ratio;
+
+    ctx.font = '700 11px Nunito, sans-serif';
+    ctx.textBaseline = 'middle';
+
+    if (!isWorkMode) {
+        // 4分音符が4つ。ゆっくり1つずつ進む
+        const beat = Math.min(3, Math.floor(progress * 4));
+        const pulse = 1 + Math.sin(t * 2.2) * 0.06;
+        for (let b = 0; b < 4; b++) {
+            const x = 64 + b * 64, y = 118;
+            const r = b === beat ? 22 * pulse : 22;
+            ctx.fillStyle = b < beat ? on : b === beat ? soft : mist;
+            ctx.beginPath();
+            ctx.ellipse(x, y, r, r * 0.78, -0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = b <= beat ? on : mist;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(x + r * 0.92, y - 6);
+            ctx.lineTo(x + r * 0.92, y - 76);
+            ctx.stroke();
+        }
+        // 進み具合の線
+        ctx.fillStyle = mist;
+        ctx.fillRect(32, 176, 256, 4);
+        ctx.fillStyle = on;
+        ctx.fillRect(32, 176, 256 * progress, 4);
+        return;
+    }
+
+    const x0 = 52, y0 = 54, cols = 16, cw = 15.5, rh = 38;
+    const col = Math.min(cols - 1, Math.floor(progress * cols));
+    const pulse = Math.sin(t * 8) * 0.5 + 0.5;
+
+    // 拍ごとの帯
+    for (let g = 0; g < 4; g++) {
+        ctx.fillStyle = g % 2 ? C.white : 'rgba(239, 226, 204, 0.5)';
+        ctx.fillRect(x0 + g * 4 * cw - 2, y0 - 8, 4 * cw, rh * 3 + 4);
+    }
+
+    DRUM_ROWS.forEach((row, ri) => {
+        const y = y0 + ri * rh + rh / 2 - 6;
+        ctx.fillStyle = C.ink;
+        ctx.globalAlpha = 0.6;
+        ctx.fillText(row.label, 20, y);
+        ctx.globalAlpha = 1;
+        for (let c = 0; c < cols; c++) {
+            const x = x0 + c * cw + cw / 2 - 2;
+            const hit = row.hits.includes(c);
+            if (!hit) {
+                ctx.fillStyle = mist;
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, Math.PI * 2);
+                ctx.fill();
+                continue;
+            }
+            let r = 5.5;
+            if (c < col) ctx.fillStyle = on;
+            else if (c === col) { ctx.fillStyle = on; r = 5.5 + pulse * 1.8; }
+            else ctx.fillStyle = soft;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+
+    // 再生位置の線（なめらかに進む）
+    const px = x0 + progress * cols * cw - 2;
+    ctx.strokeStyle = C.ink;
+    ctx.globalAlpha = 0.5;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px, y0 - 12);
+    ctx.lineTo(px, y0 + rh * 3);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // 拍の番号
+    ctx.fillStyle = C.ink;
+    ctx.globalAlpha = 0.5;
+    for (let g = 0; g < 4; g++) ctx.fillText(String(g + 1), x0 + g * 4 * cw + cw / 2 - 5, y0 + rh * 3 + 14);
+    ctx.globalAlpha = 1;
 }
 
 function formatTime(secs) {
@@ -560,7 +920,7 @@ function renderText(force = false) {
     barTime.textContent = text;
     glassTime.textContent = text;
     skyTime.textContent = text;
-    ballsTime.textContent = text;
+    sceneTime.textContent = text;
     const phase = isWorkMode ? PHASE_LABEL.work : PHASE_LABEL.break;
     document.title = isRunning ? `${text} ${phase}｜Visual Pomodoro` : 'Visual Pomodoro';
 }
@@ -571,13 +931,6 @@ function updateDisplay() {
 }
 
 function frame() {
-    const now = performance.now();
-    const dt = Math.min(0.05, (now - lastFrameAt) / 1000); // 裏のタブから戻った時に大きく飛ばない
-    lastFrameAt = now;
-    if (views.balls.classList.contains('is-active')) {
-        const ratio = Math.min(1, currentRemaining() / totalMs);
-        stepBalls(dt, ratio);
-    }
     renderShapes();
     frameId = isRunning ? requestAnimationFrame(frame) : null;
 }
@@ -609,11 +962,10 @@ function switchMode(isWork) {
     barPhase.textContent = phase;
     glassPhase.textContent = phase;
     skyPhase.textContent = phase;
-    ballsPhase.textContent = phase;
+    scenePhase.textContent = phase;
     skipBtn.textContent = isWork ? '休憩に入る' : '集中に戻る';
 
     buildSteps(mins);
-    if (isWork) configureBalls(mins);
     resetScene();
     updateDisplay();
     if (isRunning) playModeSound();
@@ -642,7 +994,6 @@ function startTimer() {
     endAt = performance.now() + remainingMs;
     document.body.classList.add('is-running');
     logicInterval = setInterval(logicTick, 200);
-    lastFrameAt = performance.now();
     frameId = requestAnimationFrame(frame);
     toggleTimerBtn.textContent = '一時停止';
     setInputsLocked(true);
@@ -713,6 +1064,6 @@ window.addEventListener('resize', () => renderShapes());
 buildStars();
 try {
     const saved = localStorage.getItem('pomodoro-view');
-    if (saved && views[saved]) setView(saved);
+    if (saved && (views[saved] || SCENES.includes(saved))) setView(saved);
 } catch (e) {}
 switchMode(true);

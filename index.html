@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body class="is-focus">
     <div class="page">
@@ -34,7 +34,11 @@
                 <button type="button" class="view-switch__btn" data-view="bar" aria-pressed="false">バー</button>
                 <button type="button" class="view-switch__btn" data-view="glass" aria-pressed="false">砂時計</button>
                 <button type="button" class="view-switch__btn" data-view="sky" aria-pressed="false">空</button>
-                <button type="button" class="view-switch__btn" data-view="balls" aria-pressed="false">ボール</button>
+                <button type="button" class="view-switch__btn" data-view="plant" aria-pressed="false">植物</button>
+                <button type="button" class="view-switch__btn" data-view="candle" aria-pressed="false">ろうそく</button>
+                <button type="button" class="view-switch__btn" data-view="coffee" aria-pressed="false">コーヒー</button>
+                <button type="button" class="view-switch__btn" data-view="book" aria-pressed="false">本</button>
+                <button type="button" class="view-switch__btn" data-view="drum" aria-pressed="false">ドラム</button>
             </div>
         </header>
 
@@ -140,12 +144,12 @@
                 </div>
             </section>
 
-            <!-- ボールの表示（集中＝ボールが増えて枠を埋める、休憩＝雨で水がたまる） -->
-            <section class="view view--balls" id="view-balls" aria-label="ボールのタイマー">
-                <canvas class="balls" id="balls-canvas"></canvas>
-                <div class="balls__readout">
-                    <span class="time" id="balls-time">25:00</span>
-                    <span class="phase" id="balls-phase">集中タイム</span>
+            <!-- キャンバスで描く表示（植物・ろうそく・コーヒー・本・ドラム） -->
+            <section class="view view--scene" id="view-scene">
+                <canvas class="scene" id="scene-canvas" role="img" aria-label="植物のタイマー"></canvas>
+                <div class="scene__readout">
+                    <span class="time" id="scene-time">25:00</span>
+                    <span class="phase" id="scene-phase">集中タイム</span>
                 </div>
             </section>
 
@@ -173,7 +177,7 @@
             <p>Created by Ushi ／ <a href="https://github.com/Ushi54/pomodoro-timer" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
-    <script src="pomodoro.js?v=11"></script>
+    <script src="pomodoro.js?v=13"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
