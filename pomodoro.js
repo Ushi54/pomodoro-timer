@@ -1245,6 +1245,8 @@ window.addEventListener('resize', () => renderShapes());
 // --- Initialize ---
 buildStars();
 loadSettings();
+// 動作確認用：URLに ?review を付けて開くと、感想のお願いをすぐに出す（回数や前回の選択に関係なく）
+if (new URLSearchParams(location.search).has('review') && reviewDialog.showModal) reviewDialog.showModal();
 try {
     const saved = localStorage.getItem('pomodoro-view');
     if (saved && (views[saved] || SCENES.includes(saved))) setView(saved);

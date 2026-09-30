@@ -451,6 +451,7 @@ body.is-break .sky__ground { fill: #2D241E; }
 }
 
 .btn {
+    touch-action: manipulation;
     font: inherit;
     font-weight: 700;
     color: var(--ink);
@@ -492,6 +493,8 @@ body.is-break .sky__ground { fill: #2D241E; }
 /* ---------- 感想のお願い ---------- */
 .ask {
     width: min(100% - 32px, 380px);
+    max-height: none;
+    overflow: visible;
     padding: 24px 24px 20px;
     color: var(--ink);
     background: var(--table);
@@ -521,11 +524,28 @@ body.is-break .sky__ground { fill: #2D241E; }
     gap: 6px;
 }
 
+.ask .btn {
+    position: relative;
+    touch-action: manipulation; /* ダブルタップの拡大と迷わず、1回のタップで反応させる */
+}
+
 .ask .btn--main {
     display: inline-block;
     text-decoration: none;
     color: var(--ink);
 }
+
+/* iPhoneのSafariでは、重ねて出す部品の「押せる範囲」が見た目より少しずれることがあるため、
+   見た目は変えずに押せる範囲を上下に広げておく。押した時に縮む動きもポップアップの中ではやめる */
+.ask .btn::before {
+    content: '';
+    position: absolute;
+    inset: -12px -8px;
+}
+
+.ask .btn--main:active { transform: none; }
+
+.ask__actions .btn--quiet { margin-top: 20px; } /* 広げた押せる範囲どうしが重ならないように */
 
 /* ---------- フッター ---------- */
 .foot {
