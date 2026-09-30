@@ -111,6 +111,7 @@ body {
 .view-switch {
     display: inline-flex;
     max-width: 100%;
+    margin: 0 auto; /* 2段目の中央に置く */
     padding: 4px;
     border-radius: 999px;
     background: var(--plate);

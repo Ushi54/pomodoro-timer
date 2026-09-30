@@ -1242,6 +1242,21 @@ document.addEventListener('keydown', (e) => {
 
 window.addEventListener('resize', () => renderShapes());
 
+// iPhoneでは、ホーム画面に戻るなどしてアプリが裏に回るとBGMが止められる。
+// アプリに戻ったら鳴らし直し、それでも止まっている時は次のタップで再開する。
+function resumeSoundIfNeeded() {
+    if (!isRunning || !soundOn) return;
+    initAudio();
+    if (activeAudioNodes.length === 0 || (audioCtx && audioCtx.state !== 'running')) playModeSound();
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') resumeSoundIfNeeded();
+});
+document.addEventListener('pointerdown', () => {
+    if (audioCtx && audioCtx.state !== 'running') resumeSoundIfNeeded();
+});
+
 // --- Initialize ---
 buildStars();
 loadSettings();
