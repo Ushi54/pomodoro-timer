@@ -46,7 +46,7 @@ const reviewWrite = document.getElementById('review-write');
 const reviewLater = document.getElementById('review-later');
 
 // 感想を書いてもらうnoteの記事。空のうちはポップアップを出さない（記事を公開したらURLを入れる）
-const REVIEW_URL = '';
+const REVIEW_URL = 'https://note.com/ushi5432/n/n72bb091946ae';
 const REVIEW_AT_BREAK = 3;                 // 何回目のひと休みで出すか
 const REVIEW_SNOOZE_MS = 30 * 24 * 60 * 60 * 1000; // 「今はしない」の後、出さない期間（30日）
 
