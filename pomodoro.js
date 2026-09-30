@@ -250,7 +250,7 @@ function setView(name) {
 
 function viewLabel(name) {
     const btn = [...viewButtons].find((b) => b.dataset.view === name);
-    return btn ? btn.textContent : '';
+    return btn ? btn.getAttribute('aria-label') : '';
 }
 
 // --- 円：扇形（残り時間）とドット（1分ごと） ---
