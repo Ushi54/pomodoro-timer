@@ -31,7 +31,10 @@ const ballsPhase = document.getElementById('balls-phase');
 const BOX = { w: 320, h: 220 };
 const BALL_SPEED = 110;              // 1秒に進む距離（箱の大きさ基準）。速さは分数に関係なく一定
 const BALL_FILL = 0.62;              // 満杯＝箱の面積の約6割をボールが占める状態（見た目にぎっしり。これ以上だと動けなくなる）
-const BALL_COLORS = ['#6F9B88', '#A3C2AD', '#C9A47B', '#E0C6A5'];
+// 集中中は緑系、休憩に入るとそれぞれ対応する茶系に色が変わる（color-A→G、color-B→F）
+const BALL_TONES = { work: [[0x6F, 0x9B, 0x88], [0xA3, 0xC2, 0xAD]], break: [[0xC9, 0xA4, 0x7B], [0xE0, 0xC6, 0xA5]] };
+const TONE_SHIFT_MS = 800;           // 緑→茶に変わる時間
+let toneShiftAt = 0;                 // 休憩に入った時刻
 let balls = [];
 let ballTarget = 100;                // 満杯になる時のボールの数
 let ballR = 10;
@@ -380,7 +383,7 @@ function addBall(x, y, inwardX = 0, inwardY = 0) {
         x: Math.min(BOX.w - ballR, Math.max(ballR, x)),
         y: Math.min(BOX.h - ballR, Math.max(ballR, y)),
         vx, vy,
-        c: BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)],
+        tone: Math.floor(Math.random() * 2),
     });
 }
 
@@ -393,6 +396,14 @@ function resetScene() {
     }
     // 休憩：集中中に集めたボールをそのまま使い、足りない時（途中で休憩に入った等）は箱いっぱいまで足す
     while (balls.length < ballTarget) addBallFromWall();
+    toneShiftAt = performance.now();
+}
+
+function ballColor(b) {
+    const k = isWorkMode ? 0 : Math.min(1, (performance.now() - toneShiftAt) / TONE_SHIFT_MS);
+    const from = BALL_TONES.work[b.tone], to = BALL_TONES.break[b.tone];
+    const [r, g, bl] = from.map((v, i) => Math.round(v + (to[i] - v) * k));
+    return `rgb(${r}, ${g}, ${bl})`;
 }
 
 function ballsWanted(ratio) {
@@ -406,7 +417,7 @@ function ballsWanted(ratio) {
 function popBall(animate = true) {
     const i = Math.floor(Math.random() * balls.length);
     const [b] = balls.splice(i, 1);
-    if (animate) pops.push({ x: b.x, y: b.y, c: b.c, t0: performance.now() });
+    if (animate) pops.push({ x: b.x, y: b.y, c: ballColor(b), t0: performance.now() });
 }
 
 // 箱のふちのどこかから、内側に向かって新しいボールを出す
@@ -486,7 +497,7 @@ function drawScene(ratio) {
     for (const b of balls) {
         ctx.beginPath();
         ctx.arc(b.x, b.y, ballR, 0, Math.PI * 2);
-        ctx.fillStyle = b.c;
+        ctx.fillStyle = ballColor(b);
         ctx.fill();
     }
     // 弾けたボール：ふくらみながら薄くなる輪と、外に飛び散る小さなしぶき
