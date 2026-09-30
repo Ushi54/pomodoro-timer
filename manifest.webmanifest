@@ -1,0 +1,16 @@
+{
+  "name": "Visual Pomodoro",
+  "short_name": "Pomodoro",
+  "description": "見て分かるポモドーロタイマー。円・バー・砂時計・空・ボールの5つの表示と環境音。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5EFE1",
+  "theme_color": "#F5EFE1",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

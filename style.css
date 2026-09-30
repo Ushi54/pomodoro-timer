@@ -1,337 +1,491 @@
+/* Visual Pomodoro v2
+   色は design_system の7色＋白＋文字色のみ。
+   主役は「お皿」（円のタイマー）ひとつだけ。ほかは静かに。 */
+
 :root {
-    --bg-color: #F5EFE1; /* color-D: Lightest Cream */
-    --text-color: #2D241E; /* 限りなく黒に近い茶色 */
-    --panel-bg: #FFFFFF; /* 白 */
-    --timer-red: #6F9B88; /* 作業中： color-A (Darkest Green) */
-    --timer-green: #C9A47B; /* 休憩中： color-G (Darkest Sand) */
-    --timer-bg: #EFE2CC; /* color-E: Light Warm Beige */
-    --border-color: #DCE5D2; /* color-C: Light Greenish Cream */
-    --shadow: 0 8px 24px rgba(45, 36, 30, 0.08);
+    --table: #F5EFE1;      /* color-D 背景（テーブル） */
+    --plate: #FFFFFF;      /* お皿 */
+    --ink: #2D241E;        /* 文字 */
+    --sage: #6F9B88;       /* color-A 集中 */
+    --sage-soft: #A3C2AD;  /* color-B */
+    --sage-mist: #DCE5D2;  /* color-C */
+    --sand-mist: #EFE2CC;  /* color-E */
+    --sand-soft: #E0C6A5;  /* color-F */
+    --sand: #C9A47B;       /* color-G 休憩 */
+
+    /* 今のモードの色（body のクラスで切り替え） */
+    --mode: var(--sage);
+    --mode-soft: var(--sage-soft);
+    --mode-mist: var(--sage-mist);
+
+    --font-ui: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif;
+    --font-num: 'Nunito', 'Zen Maru Gothic', sans-serif;
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+body.is-break {
+    --mode: var(--sand);
+    --mode-soft: var(--sand-soft);
+    --mode-mist: var(--sand-mist);
 }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; }
 
 body {
-    font-family: 'Nunito', 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    min-height: 100vh;
+    background: var(--table);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+}
+
+.page {
+    width: min(100%, 560px);
+    margin: 0 auto;
+    padding: 24px 20px 32px;
     display: flex;
-    justify-content: center;
-    padding: 20px;
+    flex-direction: column;
     min-height: 100vh;
 }
 
-.container {
-    width: 100%;
-    max-width: 600px;
+/* ---------- ヘッダー ---------- */
+.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+}
+
+.title {
+    margin: 0;
+    white-space: nowrap;
+    font-family: var(--font-num);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+.view-switch {
+    display: inline-flex;
+    padding: 4px;
+    border-radius: 999px;
+    background: var(--plate);
+    border: 1px solid var(--sand-soft);
+}
+
+.view-switch__btn {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    padding: 4px 14px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.view-switch__btn[aria-pressed="true"] {
+    background: var(--mode-mist);
+    font-weight: 700;
+}
+
+/* ---------- ステージ ---------- */
+.stage {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 24px;
-}
-
-main {
-    background: var(--panel-bg);
-    border-radius: 36px;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-}
-
-header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border-color);
+    padding-top: 32px;
 }
 
-h1 {
-    font-size: 24px;
-    font-weight: 600;
-}
+.view { display: none; width: 100%; }
+.view.is-active { display: flex; }
 
-/* UI Container Visibility */
-.ui-container {
-    display: none;
-    padding: 40px 20px 20px 20px;
-    justify-content: center;
-    align-items: center;
-}
-
-.ui-container.active {
-    display: flex;
-}
-
-/* Clock UI (TIME TIMER Style) */
-.clock-wrapper {
+/* 円の表示：これが唯一の主役 */
+.view--plate {
     position: relative;
-    width: 300px;
-    height: 300px;
-    border-radius: 2px;
+    justify-content: center;
+    width: min(100%, 400px);
+    aspect-ratio: 1;
 }
 
-.clock-svg {
+.plate {
     width: 100%;
     height: 100%;
-    transform: rotate(-90deg); /* Start at 12 o'clock */
-    border-radius: 2px;
+    overflow: visible;
 }
 
-.clock-bg {
-    display: none;
-}
-
-.clock-base {
-    fill: var(--timer-red);
-    stroke: none;
-}
-
-.clock-base.break-mode {
-    fill: var(--timer-green);
-}
-
-.clock-progress-mask {
-    fill: transparent;
-    stroke: var(--panel-bg); 
-    stroke-width: 100; 
-    stroke-dasharray: 314.16;
-    stroke-dashoffset: 314.16; 
-    transition: stroke-dashoffset 1s linear;
-}
-
-.mark-line {
-    stroke: #333;
+.plate__dish {
+    fill: var(--plate);
+    stroke: var(--sand-soft);
     stroke-width: 1;
 }
 
-.mark-text {
-    font-size: 6px;
-    fill: #333;
-    font-family: sans-serif;
-    text-anchor: middle;
-    dominant-baseline: middle;
+.plate__rim {
+    fill: var(--mode-mist);
+    transition: fill 0.6s ease;
 }
 
-.clock-center {
+.plate__wedge {
+    fill: var(--mode);
+    transition: fill 0.6s ease;
+}
+
+.plate__hub {
+    fill: var(--plate);
+}
+
+.dot {
+    fill: var(--mode);
+    transition: fill 0.6s ease, opacity 0.4s ease;
+}
+
+.dot.is-spent {
+    fill: var(--mode-soft);
+    opacity: 0.45;
+}
+
+/* 今の1分だけ、ゆっくり呼吸する（動くのはここだけ） */
+body.is-running .dot.is-current {
+    animation: breathe 4s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+@keyframes breathe {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.8); }
+}
+
+.plate__readout {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 50%;
-    width: 120px;
-    height: 120px;
+    inset: 0;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 10;
+    justify-content: center;
+    pointer-events: none;
 }
 
-#clock-time-display {
-    font-size: 28px;
-    font-weight: bold;
+.time {
+    font-family: var(--font-num);
+    font-weight: 800;
+    font-size: clamp(40px, 12vw, 56px);
+    line-height: 1;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
 }
 
-/* Meter UI (Visual Bar Timer Style) */
-.meter-wrapper {
-    width: 100%;
+.phase {
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* バーの表示 */
+.view--bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 40px 0 24px;
+}
+
+.bar__readout {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.bar__readout .time { font-size: clamp(56px, 16vw, 80px); }
+
+.bar {
+    width: 100%;
+    display: grid;
+    grid-auto-flow: column;
+    gap: 4px;
+    height: 48px;
+    padding: 6px;
+    border-radius: 20px;
+    background: var(--plate);
+    border: 1px solid var(--sand-soft);
+}
+
+.bar__step {
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--mode-mist);
+    transition: background 0.6s ease;
+}
+
+/* 使っている最中の1本は、左に向かって滑らかに縮む（毎フレームJSで更新） */
+.bar__fill {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--mode);
+    transform-origin: left center;
+    transition: background 0.6s ease;
+}
+
+/* 砂時計の表示 */
+.view--glass {
+    flex-direction: column;
     align-items: center;
     gap: 16px;
 }
 
-.meter-track {
-    flex-grow: 1;
-    height: 40px;
-    background: var(--timer-bg);
-    border-radius: 6px;
-    position: relative;
-    overflow: hidden;
+.glass {
+    width: min(64vw, 260px);
+    height: auto;
+    overflow: visible;
 }
 
-.meter-grid {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: linear-gradient(90deg, transparent 90%, rgba(0,0,0,0.1) 90%);
-    background-size: 10% 100%;
-    z-index: 2;
+.glass__body {
+    transform-box: view-box;
+    transform-origin: 100px 130px;
+    transition: transform 1s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-.meter-fill {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 100%;
-    background: var(--timer-red);
-    z-index: 1;
-    transition: width 1s linear, background 0.3s ease;
+.glass__body.is-flipping { transform: rotate(180deg); }
+
+.glass__cap, .glass__post { fill: var(--sand-soft); }
+
+.glass__bulb {
+    fill: var(--plate);
+    stroke: var(--mode-soft);
+    stroke-width: 2.5;
+    transition: stroke 0.6s ease;
 }
 
-.meter-fill.break-mode {
-    background: var(--timer-green);
+.glass__sand {
+    fill: var(--mode);
+    transition: fill 0.6s ease;
 }
 
-.meter-label {
-    min-width: 60px;
-    text-align: right;
+.glass__stream {
+    stroke: var(--mode);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 3 5;
+    opacity: 0;
 }
 
-#meter-time-display {
-    font-size: 32px;
-    font-weight: bold;
-    font-variant-numeric: tabular-nums;
+body.is-running .glass__stream.is-flowing {
+    opacity: 1;
+    animation: fall 0.6s linear infinite;
 }
 
-.meter-unit {
-    font-size: 14px;
-    color: #666;
-    margin-left: 2px;
-}
+@keyframes fall { to { stroke-dashoffset: -8; } }
 
-/* Controls Panel */
-.panel {
-    padding: 24px;
-}
-
-.status-indicator {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-#current-status {
-    color: var(--timer-red);
-    font-size: 20px;
-}
-
-#current-status.break-mode {
-    color: var(--timer-green);
-}
-
-.actions {
+.glass__readout {
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 空の表示 */
+.view--sky {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.sky {
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+}
+
+.sky__day, .sky__night, .sky__clouds, .sky__stars, .sky__sun, .sky__moon {
+    transition: opacity 1.5s ease;
+}
+
+/* 昼（集中） */
+.sky__night, .sky__stars, .sky__moon { opacity: 0; }
+.sky__clouds { fill: #FFFFFF; opacity: 0.92; }
+.sky__sun-core { fill: #FFFFFF; stroke: var(--sand); stroke-width: 3; }
+.sky__sun-halo { fill: #FFFFFF; opacity: 0.45; }
+.sky__path {
+    fill: none;
+    stroke: #FFFFFF;
+    stroke-width: 1.5;
+    stroke-dasharray: 2 6;
+    stroke-linecap: round;
+    opacity: 0.8;
+}
+.sky__ground { fill: var(--sand-soft); transition: fill 1.5s ease; }
+
+/* 夜（休憩） */
+body.is-break .sky__night,
+body.is-break .sky__stars,
+body.is-break .sky__moon { opacity: 1; }
+body.is-break .sky__clouds,
+body.is-break .sky__sun { opacity: 0; }
+body.is-break .sky__path { opacity: 0.35; }
+body.is-break .sky__ground { fill: #2D241E; }
+
+.sky__moon-body { fill: var(--table); }
+.sky__stars { fill: #FFFFFF; }
+
+.sky__readout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* ボールの表示 */
+.view--balls {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.balls {
+    display: block;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 320 / 220;
+    border-radius: 28px;
+    background: var(--plate);
+    border: 1px solid var(--sand-soft);
+}
+
+.balls__readout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* ---------- 設定の一文 ---------- */
+.plan {
+    margin: 32px 0 0;
+    font-size: 17px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.plan__field input {
+    width: 2.6em;
+    margin: 0 4px;
+    padding: 0 2px 2px;
+    font-family: var(--font-num);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+    text-align: center;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid var(--mode-soft);
+    border-radius: 0;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+}
+
+.plan__field input::-webkit-inner-spin-button,
+.plan__field input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.plan__field input:disabled {
+    color: var(--ink);
+    border-bottom-color: transparent;
+    opacity: 0.6;
+}
+
+/* ---------- ボタン ---------- */
+.actions {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
     justify-content: center;
-    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 8px 16px;
 }
 
 .btn {
-    padding: 12px 24px;
-    border-radius: 24px;
-    border: none;
-    font-size: 16px;
-    font-weight: 600;
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink);
     cursor: pointer;
-    background: #f0f0f0;
-    color: #333;
-    white-space: nowrap;
-    transition: background 0.2s;
+    border: 0;
 }
 
-.btn:hover:not(:disabled) {
-    background: #e0e0e0;
+.btn--main {
+    min-width: 168px;
+    padding: 14px 32px;
+    border-radius: 999px;
+    background: var(--mode);
+    font-size: 18px;
+    transition: background 0.6s ease, transform 0.1s ease;
 }
 
-.btn.primary {
-    background: var(--timer-red);
-    color: #fff;
-}
+.btn--main:active { transform: scale(0.97); }
 
-.btn.primary.break-mode {
-    background: var(--timer-green);
-}
-
-.btn.primary:hover:not(:disabled) {
-    opacity: 0.9;
-}
-
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.settings {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    border-top: 1px solid var(--border-color);
-    padding-top: 20px;
-}
-
-.setting-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-    min-width: 120px;
-}
-
-.setting-group label {
-    font-size: 14px;
-    color: #666;
-}
-
-.setting-group input, .setting-group select {
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: 16px;
-}
-
-/* === Responsive (Mobile) === */
-@media (max-width: 480px) {
-    body {
-        padding: 12px;
-    }
-    
-    header {
-        flex-direction: column;
-        gap: 12px;
-        align-items: stretch;
-        text-align: center;
-    }
-
-    .btn {
-        white-space: nowrap;
-        flex: 1;
-        padding: 10px 12px;
-        font-size: 14px;
-    }
-
-    .actions {
-        gap: 8px;
-    }
-
-    /* SVGサイズなども必要に応じて調整 */
-    #clock-progress {
-        transform-origin: center;
-    }
-}
-
-/* === Footer === */
-.app-footer {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 12px;
-    color: #888;
-}
-
-.app-footer a {
-    color: #888;
-    text-decoration: none;
-    transition: color 0.2s;
-}
-
-.app-footer a:hover {
-    color: #333;
+.btn--quiet {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: transparent;
+    font-size: 15px;
+    font-weight: 500;
     text-decoration: underline;
+    text-decoration-color: var(--mode-soft);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+}
+
+.btn--quiet:hover { background: var(--mode-mist); }
+
+.hint {
+    margin: 16px 0 0;
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+/* ---------- フッター ---------- */
+.foot {
+    margin-top: 40px;
+    text-align: center;
+    font-size: 13px;
+}
+
+.foot p { margin: 0; opacity: 0.7; }
+.foot a { color: inherit; }
+
+/* ---------- アクセシビリティ ---------- */
+:focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 3px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .page { padding: 16px 16px 24px; }
+    .stage { padding-top: 20px; }
+    .hint { display: none; }
+    .btn--main { flex-basis: 100%; }
 }

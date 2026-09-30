@@ -3,96 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visual Pomodoro Timer</title>
-    
-    <!-- ファビコン（トマトの絵文字をSVGとしてインライン指定） -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text x=%2250%%22 y=%2250%%22 style=%22dominant-baseline:central;text-anchor:middle;font-size:90px;%22>🍅</text></svg>">
-    
-    <!-- OGP (Open Graph Protocol) -->
-    <meta property="og:title" content="Visual Pomodoro Timer">
+    <title>Visual Pomodoro</title>
+
+    <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#F5EFE1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Pomodoro">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <meta property="og:title" content="Visual Pomodoro">
     <meta property="og:description" content="音声入力とAIとの壁打ち（Voice Driven Development）のみで構築された、完全オリジナルのポモドーロタイマー。環境音の自動生成機能を搭載。">
     <meta property="og:type" content="website">
     <meta property="og:image" content="https://raw.githubusercontent.com/Ushi54/pomodoro-timer/main/og-image.jpg">
     <meta name="twitter:card" content="summary_large_image">
 
-    <!-- Fonts for Organic Theme -->
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Visual Pomodoro</h1>
-            <div class="controls">
-                <button id="toggle-ui-btn" class="btn">UI切り替え (時計 / メーター)</button>
+<body class="is-focus">
+    <div class="page">
+        <header class="top">
+            <h1 class="title">Visual Pomodoro</h1>
+            <div class="view-switch" role="group" aria-label="タイマーの表示">
+                <button type="button" class="view-switch__btn" data-view="plate" aria-pressed="true">円</button>
+                <button type="button" class="view-switch__btn" data-view="bar" aria-pressed="false">バー</button>
+                <button type="button" class="view-switch__btn" data-view="glass" aria-pressed="false">砂時計</button>
+                <button type="button" class="view-switch__btn" data-view="sky" aria-pressed="false">空</button>
+                <button type="button" class="view-switch__btn" data-view="balls" aria-pressed="false">ボール</button>
             </div>
         </header>
 
-        <main>
-            <!-- 時計型UI (TIME TIMER風) -->
-            <div id="ui-clock" class="ui-container active">
-                <div class="clock-wrapper">
-                    <svg class="clock-svg" viewBox="0 0 100 100">
-                        <!-- 背景の四角 -->
-                        <rect x="0" y="0" width="100" height="100" rx="4" class="clock-bg" />
-                        <!-- ベース色（赤/緑）の四角 -->
-                        <rect x="0" y="0" width="100" height="100" rx="4" class="clock-base" id="clock-base" />
-                        <!-- 上から白で塗りつぶしていく（四角全体を覆えるように半径50、太さ100の円でマスク） -->
-                        <circle cx="50" cy="50" r="50" class="clock-progress-mask" id="clock-progress" />
-                        <!-- 目盛りと数字はJSで動的に追加 -->
-                        <g id="clock-marks"></g>
-                    </svg>
-                    <div class="clock-center">
-                        <span id="clock-time-display">25:00</span>
-                    </div>
+        <main class="stage">
+            <!-- 円の表示（TIME TIMER風の扇形＋1分ごとのドット） -->
+            <section class="view view--plate is-active" id="view-plate" aria-label="円のタイマー">
+                <svg class="plate" viewBox="0 0 200 200" aria-hidden="true">
+                    <circle class="plate__dish" cx="100" cy="100" r="96" />
+                    <circle class="plate__rim" cx="100" cy="100" r="84" />
+                    <path class="plate__wedge" id="plate-wedge" d="" />
+                    <g id="plate-dots"></g>
+                    <circle class="plate__hub" cx="100" cy="100" r="46" />
+                </svg>
+                <div class="plate__readout">
+                    <span class="time" id="plate-time">25:00</span>
+                    <span class="phase" id="plate-phase">集中タイム</span>
                 </div>
-            </div>
+            </section>
 
-            <!-- メーター型UI (ビジュアルバータイマー風) -->
-            <div id="ui-meter" class="ui-container">
-                <div class="meter-wrapper">
-                    <div class="meter-track">
-                        <!-- 目盛り -->
-                        <div id="meter-grid" class="meter-grid"></div>
-                        <!-- 減っていくバー -->
-                        <div class="meter-fill" id="meter-fill"></div>
-                    </div>
-                    <div class="meter-label">
-                        <span id="meter-time-display">25</span><span class="meter-unit">min</span>
-                    </div>
+            <!-- バーの表示 -->
+            <section class="view view--bar" id="view-bar" aria-label="バーのタイマー">
+                <div class="bar__readout">
+                    <span class="time" id="bar-time">25:00</span>
+                    <span class="phase" id="bar-phase">集中タイム</span>
                 </div>
-            </div>
+                <div class="bar" id="bar-steps" aria-hidden="true"></div>
+            </section>
 
-            <!-- 操作パネル -->
-            <div class="panel">
-                <div class="status-indicator">
-                    <h2 id="current-status">作業中 (Focus)</h2>
+            <!-- 砂時計の表示 -->
+            <section class="view view--glass" id="view-glass" aria-label="砂時計のタイマー">
+                <svg class="glass" viewBox="0 0 200 260" aria-hidden="true">
+                    <defs>
+                        <clipPath id="glass-top"><path d="M52 40 C52 95 94 108 94 130 L106 130 C106 108 148 95 148 40 Z" /></clipPath>
+                        <clipPath id="glass-bottom"><path d="M94 130 C94 152 52 165 52 220 L148 220 C148 165 106 152 106 130 Z" /></clipPath>
+                    </defs>
+                    <g class="glass__body" id="glass-body">
+                        <rect class="glass__post" x="40" y="36" width="6" height="188" rx="3" />
+                        <rect class="glass__post" x="154" y="36" width="6" height="188" rx="3" />
+                        <path class="glass__bulb" d="M52 40 C52 95 94 108 94 130 C94 152 52 165 52 220 L148 220 C148 165 106 152 106 130 C106 108 148 95 148 40 Z" />
+                        <rect class="glass__sand" id="glass-sand-top" x="40" y="130" width="120" height="0" clip-path="url(#glass-top)" />
+                        <rect class="glass__sand" id="glass-sand-bottom" x="40" y="220" width="120" height="0" clip-path="url(#glass-bottom)" />
+                        <line class="glass__stream" id="glass-stream" x1="100" y1="130" x2="100" y2="220" />
+                        <rect class="glass__cap" x="30" y="22" width="140" height="18" rx="9" />
+                        <rect class="glass__cap" x="30" y="220" width="140" height="18" rx="9" />
+                    </g>
+                </svg>
+                <div class="glass__readout">
+                    <span class="time" id="glass-time">25:00</span>
+                    <span class="phase" id="glass-phase">集中タイム</span>
                 </div>
-                
-                <div class="actions">
-                    <button id="toggle-timer-btn" class="btn primary">スタート</button>
-                    <button id="reset-btn" class="btn">リセット</button>
-                    <button id="skip-btn" class="btn">すぐ休憩に入る</button>
-                </div>
+            </section>
 
-                <div class="settings">
-                    <div class="setting-group">
-                        <label for="work-time">作業時間 (分)</label>
-                        <input type="number" id="work-time" value="25" min="1" max="120">
-                    </div>
-                    <div class="setting-group">
-                        <label for="break-time">休憩時間 (分)</label>
-                        <input type="number" id="break-time" value="5" min="1" max="60">
-                    </div>
-                    
+            <!-- 空の表示（集中＝太陽、休憩＝月が半円を描いて進む） -->
+            <section class="view view--sky" id="view-sky" aria-label="空のタイマー">
+                <svg class="sky" viewBox="0 0 320 200" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="sky-day" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="#A3C2AD" />
+                            <stop offset="1" stop-color="#DCE5D2" />
+                        </linearGradient>
+                        <linearGradient id="sky-night" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="#2D241E" />
+                            <stop offset="0.7" stop-color="#2D241E" stop-opacity="0.92" />
+                            <stop offset="1" stop-color="#6F9B88" />
+                        </linearGradient>
+                        <clipPath id="sky-frame"><rect x="0" y="0" width="320" height="200" rx="28" /></clipPath>
+                        <mask id="moon-cut" maskUnits="userSpaceOnUse" x="-30" y="-30" width="60" height="60">
+                            <rect x="-30" y="-30" width="60" height="60" fill="#fff" />
+                            <circle cx="7" cy="-5" r="13" fill="#000" />
+                        </mask>
+                    </defs>
+                    <g clip-path="url(#sky-frame)">
+                        <rect class="sky__day" x="0" y="0" width="320" height="200" fill="url(#sky-day)" />
+                        <rect class="sky__night" x="0" y="0" width="320" height="200" fill="url(#sky-night)" />
+                        <g class="sky__stars" id="sky-stars"></g>
+                        <path class="sky__path" d="M 40 160 A 120 120 0 0 1 280 160" />
+                        <g class="sky__sun" id="sky-sun">
+                            <circle r="22" class="sky__sun-halo" />
+                            <circle r="14" class="sky__sun-core" />
+                        </g>
+                        <g class="sky__moon" id="sky-moon">
+                            <circle r="14" class="sky__moon-body" mask="url(#moon-cut)" />
+                        </g>
+                        <g class="sky__clouds">
+                            <g transform="translate(66 62)">
+                                <circle cx="0" cy="6" r="11" /><circle cx="14" cy="0" r="15" /><circle cx="30" cy="6" r="11" />
+                                <rect x="0" y="6" width="30" height="11" rx="5.5" />
+                            </g>
+                            <g transform="translate(214 44) scale(0.8)">
+                                <circle cx="0" cy="6" r="11" /><circle cx="14" cy="0" r="15" /><circle cx="30" cy="6" r="11" />
+                                <rect x="0" y="6" width="30" height="11" rx="5.5" />
+                            </g>
+                            <g transform="translate(246 104) scale(0.6)">
+                                <circle cx="0" cy="6" r="11" /><circle cx="14" cy="0" r="15" /><circle cx="30" cy="6" r="11" />
+                                <rect x="0" y="6" width="30" height="11" rx="5.5" />
+                            </g>
+                        </g>
+                        <path class="sky__ground" d="M0 160 C 60 152 110 164 160 158 C 220 151 270 163 320 156 L320 200 L0 200 Z" />
+                    </g>
+                </svg>
+                <div class="sky__readout">
+                    <span class="time" id="sky-time">25:00</span>
+                    <span class="phase" id="sky-phase">集中タイム</span>
                 </div>
+            </section>
+
+            <!-- ボールの表示（集中＝ボールが増えて枠を埋める、休憩＝雨で水がたまる） -->
+            <section class="view view--balls" id="view-balls" aria-label="ボールのタイマー">
+                <canvas class="balls" id="balls-canvas"></canvas>
+                <div class="balls__readout">
+                    <span class="time" id="balls-time">25:00</span>
+                    <span class="phase" id="balls-phase">集中タイム</span>
+                </div>
+            </section>
+
+            <p class="sr-only" id="live-status" aria-live="polite"></p>
+
+            <p class="plan">
+                <label class="plan__field">
+                    <span class="sr-only">集中する時間（分）</span>
+                    <input type="number" id="work-time" value="25" min="1" max="120" inputmode="numeric">
+                </label>分集中して、<label class="plan__field">
+                    <span class="sr-only">休む時間（分）</span>
+                    <input type="number" id="break-time" value="5" min="1" max="60" inputmode="numeric">
+                </label>分休む
+            </p>
+
+            <div class="actions">
+                <button type="button" class="btn btn--main" id="toggle-timer-btn">スタート</button>
+                <button type="button" class="btn btn--quiet" id="reset-btn">最初から</button>
+                <button type="button" class="btn btn--quiet" id="skip-btn">休憩に入る</button>
             </div>
+            <p class="hint">スペースキーでもスタート・一時停止できます</p>
         </main>
-        <footer class="app-footer">
-            <p>Created by Ushi &middot; <a href="https://github.com/Ushi54/pomodoro-timer" target="_blank" rel="noopener">GitHub</a></p>
+
+        <footer class="foot">
+            <p>Created by Ushi ／ <a href="https://github.com/Ushi54/pomodoro-timer" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
-    <script src="pomodoro.js"></script>
+    <script src="pomodoro.js?v=8"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
 </body>
 </html>
