@@ -141,28 +141,6 @@ body {
     fill: var(--plate);
 }
 
-.dot {
-    fill: var(--mode);
-    transition: fill 0.6s ease, opacity 0.4s ease;
-}
-
-.dot.is-spent {
-    fill: var(--mode-soft);
-    opacity: 0.45;
-}
-
-/* 今の1分だけ、ゆっくり呼吸する（動くのはここだけ） */
-body.is-running .dot.is-current {
-    animation: breathe 4s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: center;
-}
-
-@keyframes breathe {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.45; transform: scale(0.8); }
-}
-
 .plate__readout {
     position: absolute;
     inset: 0;

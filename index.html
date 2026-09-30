@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body class="is-focus">
     <div class="page">
@@ -39,13 +39,12 @@
         </header>
 
         <main class="stage">
-            <!-- 円の表示（TIME TIMER風の扇形＋1分ごとのドット） -->
+            <!-- 円の表示（TIME TIMER風の扇形） -->
             <section class="view view--plate is-active" id="view-plate" aria-label="円のタイマー">
                 <svg class="plate" viewBox="0 0 200 200" aria-hidden="true">
                     <circle class="plate__dish" cx="100" cy="100" r="96" />
                     <circle class="plate__rim" cx="100" cy="100" r="84" />
                     <path class="plate__wedge" id="plate-wedge" d="" />
-                    <g id="plate-dots"></g>
                     <circle class="plate__hub" cx="100" cy="100" r="46" />
                 </svg>
                 <div class="plate__readout">
@@ -174,7 +173,7 @@
             <p>Created by Ushi ／ <a href="https://github.com/Ushi54/pomodoro-timer" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
-    <script src="pomodoro.js?v=8"></script>
+    <script src="pomodoro.js?v=9"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');

@@ -3,7 +3,6 @@ const viewButtons = document.querySelectorAll('.view-switch__btn');
 const views = { plate: document.getElementById('view-plate'), bar: document.getElementById('view-bar'), glass: document.getElementById('view-glass'), sky: document.getElementById('view-sky'), balls: document.getElementById('view-balls') };
 
 const plateWedge = document.getElementById('plate-wedge');
-const plateDots = document.getElementById('plate-dots');
 const plateTime = document.getElementById('plate-time');
 const platePhase = document.getElementById('plate-phase');
 
@@ -57,13 +56,12 @@ let totalMs = 25 * 60 * 1000;
 let remainingMs = totalMs;
 let endAt = 0;        // 動いている間の終了予定時刻（performance.now 基準）
 let lastShownSec = -1;
-let stepCount = 25;   // 円のドットの数（1分ごと。60を超える時はまとめる）
 const BAR_COUNT = 20; // バーは分数に関係なく常に20本
 let glassFlipping = false; // 砂時計が回転している間は砂を止めて見せる
 let glassFrozenRatio = 0;
 const GLASS = { neck: 130, topMax: 80, bottomBase: 220, bottomMax: 72 };
 
-const PLATE = { cx: 100, cy: 100, wedgeR: 74, dotR: 84 };
+const PLATE = { cx: 100, cy: 100, wedgeR: 84 };
 const PHASE_LABEL = { work: '集中タイム', break: 'ひと休み' };
 
 // --- Audio System (Web Audio API) ---
@@ -267,20 +265,6 @@ function wedgePath(ratio) {
 }
 
 function buildSteps(minutes) {
-    // 円：1分ごとにドットを1つ（60分を超える時は60個にまとめる）
-    stepCount = Math.min(minutes, 60);
-    plateDots.innerHTML = '';
-    const dotR = stepCount > 40 ? 2.2 : 3;
-    for (let i = 0; i < stepCount; i++) {
-        const [x, y] = polar(PLATE.dotR, (i + 0.5) / stepCount);
-        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        dot.setAttribute('cx', x.toFixed(2));
-        dot.setAttribute('cy', y.toFixed(2));
-        dot.setAttribute('r', dotR);
-        dot.classList.add('dot');
-        plateDots.appendChild(dot);
-    }
-
     // バー：常に20本。1本は「設定時間の1/20」ぶん（例：5分なら15秒、10分なら30秒）
     if (barSteps.children.length !== BAR_COUNT) {
         barSteps.innerHTML = '';
@@ -292,16 +276,6 @@ function buildSteps(minutes) {
             step.appendChild(fill);
             barSteps.appendChild(step);
         }
-    }
-}
-
-function paintDots(ratio) {
-    const remainingSteps = Math.ceil(ratio * stepCount);
-    const dots = plateDots.children;
-    for (let i = 0; i < stepCount; i++) {
-        // 反時計回りに並べているので、i が小さいほど12時に近い＝最後まで残る
-        dots[i].classList.toggle('is-spent', i >= remainingSteps);
-        dots[i].classList.toggle('is-current', i === remainingSteps - 1);
     }
 }
 
@@ -562,11 +536,10 @@ function currentRemaining() {
     return isRunning ? Math.max(0, endAt - performance.now()) : remainingMs;
 }
 
-// 絵（扇形・ドット・バー）：毎フレーム呼んで滑らかに動かす
+// 絵（扇形・バーなど）：毎フレーム呼んで滑らかに動かす
 function renderShapes() {
     const ratio = Math.min(1, currentRemaining() / totalMs);
     plateWedge.setAttribute('d', wedgePath(ratio));
-    paintDots(ratio);
     paintBar(ratio);
     paintGlass(glassFlipping ? glassFrozenRatio : ratio);
     paintSky(ratio);
