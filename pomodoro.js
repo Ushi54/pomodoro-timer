@@ -233,7 +233,7 @@ function playModeSound() {
 }
 
 // --- 表示の切り替え ---
-// 植物・ろうそく・コーヒー・本・ドラムは、同じキャンバス（view-scene）で描き分ける
+// 植物・ろうそく・コーヒー・本は、同じキャンバス（view-scene）で描き分ける
 function setView(name) {
     const isScene = SCENES.includes(name);
     if (isScene) sceneName = name;
@@ -245,7 +245,7 @@ function setView(name) {
         if (on) btn.parentElement.scrollLeft = Math.max(0, btn.offsetLeft - btn.parentElement.clientWidth / 2 + btn.offsetWidth / 2);
     });
     try { localStorage.setItem('pomodoro-view', name); } catch (e) {}
-    if (isScene) { sceneCanvas.setAttribute('aria-label', `${viewLabel(name)}のタイマー`); syncScene(); renderShapes(); }
+    if (isScene) { sceneCanvas.setAttribute('aria-label', `${viewLabel(name)}のタイマー`); renderShapes(); }
 }
 
 function viewLabel(name) {
@@ -358,9 +358,9 @@ function buildStars() {
     }
 }
 
-// --- キャンバスで描く表示（植物・ろうそく・コーヒー・本・ドラム） ---
+// --- キャンバスで描く表示（植物・ろうそく・コーヒー・本） ---
 // どれも 320×220 の箱の中に描く。集中は緑系、休憩は茶系。休憩に入ると0.8秒かけて色が変わる。
-const SCENES = ['plant', 'candle', 'coffee', 'book', 'drum'];
+const SCENES = ['plant', 'candle', 'coffee', 'book'];
 const C = {
     white: '#FFFFFF', ink: '#2D241E',
     sage: '#6F9B88', sageSoft: '#A3C2AD', sageMist: '#DCE5D2',
@@ -385,19 +385,7 @@ function toneK() {
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
 function resetScene() {
-    leafFallAt = {};
     if (!isWorkMode) toneShiftAt = performance.now();
-    syncScene();
-}
-
-// 途中から表示を切り替えた時などは、もう落ちているはずの葉を最初から「落ちた後」にしておく
-function syncScene() {
-    const ratio = Math.min(1, currentRemaining() / totalMs);
-    if (isWorkMode) return;
-    const remaining = Math.ceil(ratio * LEAF_COUNT);
-    LEAF_ORDER.forEach((leaf, rank) => {
-        if (rank < LEAF_COUNT - remaining && !(leaf in leafFallAt)) leafFallAt[leaf] = -Infinity;
-    });
 }
 
 function sizeCanvas() {
@@ -419,11 +407,10 @@ function drawScene(ratio) {
     const ctx = sceneCtx;
     ctx.clearRect(0, 0, BOX.w, BOX.h);
     const t = performance.now() / 1000;
-    if (sceneName === 'plant') drawPlant(ctx, ratio);
+    if (sceneName === 'plant') drawPlant(ctx, ratio, t);
     else if (sceneName === 'candle') drawCandle(ctx, ratio, t);
     else if (sceneName === 'coffee') drawCoffee(ctx, ratio, t);
     else if (sceneName === 'book') drawBook(ctx, ratio, t);
-    else if (sceneName === 'drum') drawDrum(ctx, ratio, t);
 }
 
 // なめらかに揺れる線（湯気・煙）
@@ -438,12 +425,10 @@ function wisp(ctx, x0, yBottom, height, phase, t, amp) {
     ctx.stroke();
 }
 
-// --- 植物：集中＝芽が伸びて葉が増え、最後に花が咲く／休憩＝葉が茶色になって1枚ずつ散る ---
+// --- 植物：集中＝芽が伸びて葉が増え、最後に花が咲く／休憩＝花束になって、誰かの元へ届く ---
 const LEAF_COUNT = 8;
-const LEAF_ORDER = [7, 2, 5, 0, 6, 3, 1, 4]; // 散る順番
-const LEAF_FALL_MS = 2400;
 const PLANT = { x: 160, base: 176, maxH: 128 };
-let leafFallAt = {};
+const GIFT = { from: 118, to: 212, y: 150, person: 262 }; // 花束の出発点・届く位置、人の立ち位置
 
 function stemX(y) {
     // 茎は少しだけ曲げる
@@ -464,14 +449,26 @@ function drawLeaf(ctx, x, y, angle, len, color) {
     ctx.restore();
 }
 
-function drawPlant(ctx, ratio) {
-    const k = toneK();
-    const grow = isWorkMode ? 1 - ratio : 1; // 休憩中は育ちきった姿から
+function drawFlower(ctx, x, y, size, petal) {
+    ctx.fillStyle = petal;
+    for (let p = 0; p < 6; p++) {
+        const a = (p / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.ellipse(x + Math.cos(a) * 9 * size, y + Math.sin(a) * 9 * size, 7 * size, 4.5 * size, a, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = C.sand;
+    ctx.beginPath();
+    ctx.arc(x, y, 5 * size, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// 鉢植え（集中中）。grow = 0〜1 の育ち具合
+function drawPottedPlant(ctx, grow) {
     const stemH = PLANT.maxH * clamp01(grow / 0.88);
     const top = PLANT.base - stemH;
 
-    // 茎
-    ctx.strokeStyle = mix(C.sage, C.sand, k);
+    ctx.strokeStyle = C.sage;
     ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -480,55 +477,18 @@ function drawPlant(ctx, ratio) {
     }
     ctx.stroke();
 
-    // 葉
-    const now = performance.now();
-    const remaining = Math.ceil(ratio * LEAF_COUNT);
     for (let i = 0; i < LEAF_COUNT; i++) {
         const h = PLANT.maxH * (0.12 + 0.72 * (i / (LEAF_COUNT - 1)));
         const scale = clamp01((stemH - h) / 16);
         if (scale <= 0) continue;
         const side = i % 2 ? 1 : -1;
         const y = PLANT.base - h;
-        const x = stemX(y);
-        const len = (34 - i * 1.6) * scale;
-        const angle = side > 0 ? -0.5 : Math.PI + 0.5;
-        const color = i % 2
-            ? mix(C.sage, C.sand, k)
-            : mix(C.sageSoft, C.sandSoft, k);
-
-        const rank = LEAF_ORDER.indexOf(i);
-        const fallen = !isWorkMode && rank < LEAF_COUNT - remaining;
-        if (!fallen) { drawLeaf(ctx, x, y, angle, len, color); continue; }
-
-        if (!(i in leafFallAt)) leafFallAt[i] = now;
-        const f = (now - leafFallAt[i]) / LEAF_FALL_MS;
-        if (f >= 1) continue;
-        // ひらひらと地面まで落ちて、最後に薄くなって消える
-        const fy = y + (PLANT.base + 20 - y) * Math.min(1, f / 0.8);
-        const fx = x + side * 18 * f + Math.sin(f * 9) * 10;
-        ctx.globalAlpha = f < 0.8 ? 1 : 1 - (f - 0.8) / 0.2;
-        drawLeaf(ctx, fx, fy, angle + Math.sin(f * 7) * 0.8, len, color);
-        ctx.globalAlpha = 1;
+        drawLeaf(ctx, stemX(y), y, side > 0 ? -0.5 : Math.PI + 0.5, (34 - i * 1.6) * scale, i % 2 ? C.sage : C.sageSoft);
     }
 
-    // 花（集中の最後に開く。休憩中は咲いたまま茶色になる）
     const bloom = clamp01((grow - 0.88) / 0.12);
-    if (bloom > 0) {
-        const fx = stemX(top), fy = top - 4;
-        ctx.fillStyle = mix(C.sandSoft, C.sandMist, k);
-        for (let p = 0; p < 6; p++) {
-            const a = (p / 6) * Math.PI * 2;
-            ctx.beginPath();
-            ctx.ellipse(fx + Math.cos(a) * 9 * bloom, fy + Math.sin(a) * 9 * bloom, 7 * bloom, 4.5 * bloom, a, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.fillStyle = C.sand;
-        ctx.beginPath();
-        ctx.arc(fx, fy, 5 * bloom, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    if (bloom > 0) drawFlower(ctx, stemX(top), top - 4, bloom, C.sandSoft);
 
-    // 鉢
     ctx.fillStyle = C.sand;
     ctx.beginPath();
     ctx.moveTo(126, 176); ctx.lineTo(194, 176); ctx.lineTo(184, 212); ctx.lineTo(136, 212);
@@ -538,6 +498,113 @@ function drawPlant(ctx, ratio) {
     ctx.beginPath();
     ctx.roundRect(120, 170, 80, 12, 4);
     ctx.fill();
+}
+
+// 花束：(x, y) が包み紙の先
+function drawBouquet(ctx, x, y) {
+    drawLeaf(ctx, x - 2, y - 34, Math.PI + 0.9, 26, C.sage);
+    drawLeaf(ctx, x + 2, y - 34, -0.9, 26, C.sageSoft);
+    drawLeaf(ctx, x, y - 40, -Math.PI / 2 - 0.25, 22, C.sage);
+    drawFlower(ctx, x - 13, y - 50, 0.8, C.sandSoft);
+    drawFlower(ctx, x + 13, y - 52, 0.8, C.sandMist);
+    drawFlower(ctx, x, y - 64, 0.9, C.sandSoft);
+    // 包み紙
+    ctx.fillStyle = C.sand;
+    ctx.beginPath();
+    ctx.moveTo(x - 22, y - 42); ctx.lineTo(x + 22, y - 42); ctx.lineTo(x, y);
+    ctx.closePath();
+    ctx.fill();
+    // リボン
+    ctx.fillStyle = C.sage;
+    ctx.beginPath();
+    ctx.ellipse(x - 6, y - 20, 6, 3.5, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(x + 6, y - 20, 6, 3.5, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// 花束を受け取る人
+function drawPerson(ctx, x, reach, t) {
+    ctx.fillStyle = C.sageSoft;
+    ctx.beginPath();
+    ctx.roundRect(x - 20, 114, 40, 84, [20, 20, 6, 6]);
+    ctx.fill();
+    // 腕（花束が近づくほど前に伸ばす）
+    ctx.strokeStyle = C.sageSoft;
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 12, 128);
+    ctx.lineTo(x - 18 - 16 * reach, 142 - 4 * reach);
+    ctx.stroke();
+    // 顔
+    ctx.fillStyle = C.sandMist;
+    ctx.beginPath();
+    ctx.arc(x, 94, 17, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C.ink;
+    const blink = Math.sin(t * 1.3) > 0.97 ? 0.3 : 1;
+    ctx.beginPath();
+    ctx.ellipse(x - 6, 92, 1.8, 1.8 * blink, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 6, 92, 1.8, 1.8 * blink, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(x, 97, 5 + reach * 1.5, 0.2 * Math.PI, 0.8 * Math.PI);
+    ctx.stroke();
+}
+
+function drawHeart(ctx, x, y, size) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + size * 0.9);
+    ctx.bezierCurveTo(x - size * 1.4, y, x - size * 0.6, y - size, x, y - size * 0.3);
+    ctx.bezierCurveTo(x + size * 0.6, y - size, x + size * 1.4, y, x, y + size * 0.9);
+    ctx.fill();
+}
+
+function drawPlant(ctx, ratio, t) {
+    if (isWorkMode) { drawPottedPlant(ctx, 1 - ratio); return; }
+
+    // 休憩：はじめの1割で鉢植えが花束に変わり、そこから人のところへ運ばれていく
+    const q = 1 - ratio;
+    const morph = clamp01(q / 0.1);
+    const travel = clamp01((q - 0.1) / 0.85);
+    const arrived = clamp01((q - 0.95) / 0.05);
+
+    // 通り道（進んだぶんは薄くなる＝残りの道のり）
+    const bx = GIFT.from + (GIFT.to - GIFT.from) * travel;
+    ctx.fillStyle = C.sandSoft;
+    for (let x = GIFT.from; x <= GIFT.to; x += 8) {
+        ctx.globalAlpha = x < bx ? 0.25 : 0.9;
+        ctx.beginPath();
+        ctx.arc(x, 206, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    drawPerson(ctx, GIFT.person, clamp01((travel - 0.6) / 0.4), t);
+
+    if (morph < 1) {
+        ctx.globalAlpha = 1 - morph;
+        drawPottedPlant(ctx, 1);
+        ctx.globalAlpha = 1;
+    }
+    // 歩くように小さく弾みながら進む。届いたら止まる
+    const hop = travel > 0 && travel < 1 ? Math.abs(Math.sin(t * 3)) * 4 : 0;
+    ctx.globalAlpha = morph;
+    drawBouquet(ctx, bx, GIFT.y - hop);
+    ctx.globalAlpha = 1;
+
+    // 届いたら、ハートがふわっと浮かぶ
+    if (arrived > 0) {
+        for (let h = 0; h < 3; h++) {
+            const f = (t * 0.5 + h / 3) % 1;
+            ctx.globalAlpha = arrived * (1 - f);
+            ctx.fillStyle = h % 2 ? C.sand : C.sageSoft;
+            drawHeart(ctx, GIFT.to + 14 + (h - 1) * 16, 70 - f * 40, 5 + h);
+        }
+        ctx.globalAlpha = 1;
+    }
 }
 
 // --- ろうそく：集中＝火がゆらぎながら短くなる／休憩＝火が消え、煙が細くなって消える ---
@@ -791,103 +858,6 @@ function drawBook(ctx, ratio, t) {
     ctx.moveTo(page.spine, page.top);
     ctx.lineTo(page.spine, page.top + page.h);
     ctx.stroke();
-}
-
-// --- ドラム：集中＝16分の1ずつ進む1小節のパターン／休憩＝テンポを落とした4分音符 ---
-const DRUM_ROWS = [
-    { label: 'HH', hits: [0, 2, 4, 6, 8, 10, 12, 14] },
-    { label: 'SD', hits: [4, 12] },
-    { label: 'BD', hits: [0, 7, 8, 10] },
-];
-
-function drawDrum(ctx, ratio, t) {
-    const k = toneK();
-    const on = mix(C.sage, C.sand, k);
-    const soft = mix(C.sageSoft, C.sandSoft, k);
-    const mist = mix(C.sageMist, C.sandMist, k);
-    const progress = 1 - ratio;
-
-    ctx.font = '700 11px Nunito, sans-serif';
-    ctx.textBaseline = 'middle';
-
-    if (!isWorkMode) {
-        // 4分音符が4つ。ゆっくり1つずつ進む
-        const beat = Math.min(3, Math.floor(progress * 4));
-        const pulse = 1 + Math.sin(t * 2.2) * 0.06;
-        for (let b = 0; b < 4; b++) {
-            const x = 64 + b * 64, y = 118;
-            const r = b === beat ? 22 * pulse : 22;
-            ctx.fillStyle = b < beat ? on : b === beat ? soft : mist;
-            ctx.beginPath();
-            ctx.ellipse(x, y, r, r * 0.78, -0.35, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = b <= beat ? on : mist;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(x + r * 0.92, y - 6);
-            ctx.lineTo(x + r * 0.92, y - 76);
-            ctx.stroke();
-        }
-        // 進み具合の線
-        ctx.fillStyle = mist;
-        ctx.fillRect(32, 176, 256, 4);
-        ctx.fillStyle = on;
-        ctx.fillRect(32, 176, 256 * progress, 4);
-        return;
-    }
-
-    const x0 = 52, y0 = 54, cols = 16, cw = 15.5, rh = 38;
-    const col = Math.min(cols - 1, Math.floor(progress * cols));
-    const pulse = Math.sin(t * 8) * 0.5 + 0.5;
-
-    // 拍ごとの帯
-    for (let g = 0; g < 4; g++) {
-        ctx.fillStyle = g % 2 ? C.white : 'rgba(239, 226, 204, 0.5)';
-        ctx.fillRect(x0 + g * 4 * cw - 2, y0 - 8, 4 * cw, rh * 3 + 4);
-    }
-
-    DRUM_ROWS.forEach((row, ri) => {
-        const y = y0 + ri * rh + rh / 2 - 6;
-        ctx.fillStyle = C.ink;
-        ctx.globalAlpha = 0.6;
-        ctx.fillText(row.label, 20, y);
-        ctx.globalAlpha = 1;
-        for (let c = 0; c < cols; c++) {
-            const x = x0 + c * cw + cw / 2 - 2;
-            const hit = row.hits.includes(c);
-            if (!hit) {
-                ctx.fillStyle = mist;
-                ctx.beginPath();
-                ctx.arc(x, y, 2, 0, Math.PI * 2);
-                ctx.fill();
-                continue;
-            }
-            let r = 5.5;
-            if (c < col) ctx.fillStyle = on;
-            else if (c === col) { ctx.fillStyle = on; r = 5.5 + pulse * 1.8; }
-            else ctx.fillStyle = soft;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    });
-
-    // 再生位置の線（なめらかに進む）
-    const px = x0 + progress * cols * cw - 2;
-    ctx.strokeStyle = C.ink;
-    ctx.globalAlpha = 0.5;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(px, y0 - 12);
-    ctx.lineTo(px, y0 + rh * 3);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    // 拍の番号
-    ctx.fillStyle = C.ink;
-    ctx.globalAlpha = 0.5;
-    for (let g = 0; g < 4; g++) ctx.fillText(String(g + 1), x0 + g * 4 * cw + cw / 2 - 5, y0 + rh * 3 + 14);
-    ctx.globalAlpha = 1;
 }
 
 function formatTime(secs) {

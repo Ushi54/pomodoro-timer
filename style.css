@@ -325,7 +325,7 @@ body.is-break .sky__ground { fill: #2D241E; }
     align-items: center;
 }
 
-/* キャンバスで描く表示（植物・ろうそく・コーヒー・本・ドラム） */
+/* キャンバスで描く表示（植物・ろうそく・コーヒー・本） */
 .view--scene {
     flex-direction: column;
     align-items: center;

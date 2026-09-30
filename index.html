@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body class="is-focus">
     <div class="page">
@@ -38,7 +38,6 @@
                 <button type="button" class="view-switch__btn" data-view="candle" aria-pressed="false">ろうそく</button>
                 <button type="button" class="view-switch__btn" data-view="coffee" aria-pressed="false">コーヒー</button>
                 <button type="button" class="view-switch__btn" data-view="book" aria-pressed="false">本</button>
-                <button type="button" class="view-switch__btn" data-view="drum" aria-pressed="false">ドラム</button>
             </div>
         </header>
 
@@ -144,7 +143,7 @@
                 </div>
             </section>
 
-            <!-- キャンバスで描く表示（植物・ろうそく・コーヒー・本・ドラム） -->
+            <!-- キャンバスで描く表示（植物・ろうそく・コーヒー・本） -->
             <section class="view view--scene" id="view-scene">
                 <canvas class="scene" id="scene-canvas" role="img" aria-label="植物のタイマー"></canvas>
                 <div class="scene__readout">
@@ -177,7 +176,7 @@
             <p>Created by Ushi ／ <a href="https://github.com/Ushi54/pomodoro-timer" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
-    <script src="pomodoro.js?v=13"></script>
+    <script src="pomodoro.js?v=15"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
