@@ -35,7 +35,8 @@ const BALL_COLORS = ['#6F9B88', '#A3C2AD', '#C9A47B', '#E0C6A5'];
 let balls = [];
 let ballTarget = 100;                // 満杯になる時のボールの数
 let ballR = 10;
-let drops = [];
+let pops = [];                       // 弾けている最中のボール（休憩中）
+const POP_MS = 450;                  // 弾けるアニメーションの長さ
 let lastFrameAt = 0;
 
 const liveStatus = document.getElementById('live-status');
@@ -384,17 +385,28 @@ function addBall(x, y, inwardX = 0, inwardY = 0) {
 }
 
 function resetScene() {
-    balls = [];
-    addBall(BOX.w / 2, BOX.h / 2);
-    drops = [];
-    for (let i = 0; i < 36; i++) {
-        drops.push({ x: Math.random() * BOX.w, y: Math.random() * BOX.h, v: 140 + Math.random() * 80 });
+    pops = [];
+    if (isWorkMode) {
+        balls = [];
+        addBall(BOX.w / 2, BOX.h / 2);
+        return;
     }
+    // 休憩：集中中に集めたボールをそのまま使い、足りない時（途中で休憩に入った等）は箱いっぱいまで足す
+    while (balls.length < ballTarget) addBallFromWall();
 }
 
 function ballsWanted(ratio) {
+    // 休憩：いっぱいの状態から一定の間隔で1個ずつ減り、終わりにちょうど0個
+    if (!isWorkMode) return Math.ceil(ratio * ballTarget);
     const elapsed = (1 - ratio) * totalMs;
     return Math.min(ballTarget, 1 + Math.floor(elapsed / BALL_EVERY_MS));
+}
+
+// ランダムに1個選んで弾けさせる
+function popBall(animate = true) {
+    const i = Math.floor(Math.random() * balls.length);
+    const [b] = balls.splice(i, 1);
+    if (animate) pops.push({ x: b.x, y: b.y, c: b.c, t0: performance.now() });
 }
 
 // 箱のふちのどこかから、内側に向かって新しいボールを出す
@@ -446,24 +458,11 @@ function stepBalls(dt, ratio) {
     }
     }
 
-    // 10秒ごとに1個増える（タブを裏にしていた等で遅れた時は、まとめて追いつく）
+    // 集中：10秒ごとに1個増える／休憩：1個ずつ弾けて減る
+    // （タブを裏にしていた等で遅れた時は、まとめて追いつく）
     const want = ballsWanted(ratio);
     while (balls.length < want) addBallFromWall();
-}
-
-function waterLevel(ratio) {
-    return BOX.h * (1 - ratio); // 休憩の終わりにちょうど満杯
-}
-
-function stepRain(dt, ratio) {
-    const surface = BOX.h - waterLevel(ratio);
-    for (const d of drops) {
-        d.y += d.v * dt;
-        if (d.y > surface) {
-            d.y = -10 - Math.random() * 40;
-            d.x = Math.random() * BOX.w;
-        }
-    }
+    while (balls.length > want) popBall();
 }
 
 function sizeCanvas() {
@@ -484,46 +483,40 @@ function drawScene(ratio) {
     if (!views.balls.classList.contains('is-active') || !sizeCanvas()) return;
     const ctx = ballsCtx;
     ctx.clearRect(0, 0, BOX.w, BOX.h);
-    if (isWorkMode) {
-        for (const b of balls) {
+    for (const b of balls) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, ballR, 0, Math.PI * 2);
+        ctx.fillStyle = b.c;
+        ctx.fill();
+    }
+    // 弾けたボール：ふくらみながら薄くなる輪と、外に飛び散る小さなしぶき
+    const now = performance.now();
+    pops = pops.filter((p) => now - p.t0 < POP_MS);
+    for (const p of pops) {
+        const k = (now - p.t0) / POP_MS;
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = p.c;
+        ctx.lineWidth = Math.max(1, ballR * 0.25 * (1 - k));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, ballR * (1 + 0.7 * k), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = p.c;
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            const d = ballR * (1.1 + 1.1 * k);
             ctx.beginPath();
-            ctx.arc(b.x, b.y, ballR, 0, Math.PI * 2);
-            ctx.fillStyle = b.c;
+            ctx.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, Math.max(0.8, ballR * 0.14 * (1 - k)), 0, Math.PI * 2);
             ctx.fill();
         }
-        return;
     }
-    // 休憩：雨と、たまっていく水（水面は少し揺れる）
-    const level = waterLevel(ratio);
-    const surface = BOX.h - level;
-    const t = performance.now() / 1000;
-    ctx.fillStyle = 'rgba(163, 194, 173, 0.55)'; // color-B
-    ctx.beginPath();
-    ctx.moveTo(0, BOX.h);
-    for (let x = 0; x <= BOX.w; x += 8) {
-        ctx.lineTo(x, surface + Math.sin(x / 22 + t * 2) * 2.2);
-    }
-    ctx.lineTo(BOX.w, BOX.h);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = '#6F9B88'; // color-A
-    ctx.lineWidth = 1.6;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    for (const d of drops) {
-        if (d.y < surface) {
-            ctx.moveTo(d.x, d.y);
-            ctx.lineTo(d.x - 1.5, Math.min(d.y + 9, surface));
-        }
-    }
-    ctx.stroke();
+    ctx.globalAlpha = 1;
 }
 
 function syncScene() {
-    // 途中から「ボール」に切り替えた時などは、今の進み具合までボールを増やしておく
-    if (!isWorkMode) return;
+    // 途中から「ボール」に切り替えた時などは、今の進み具合までボールの数をそろえておく
     const want = ballsWanted(Math.min(1, currentRemaining() / totalMs));
     while (balls.length < want) addBallFromWall();
+    while (balls.length > want) popBall(false);
 }
 
 function formatTime(secs) {
@@ -572,8 +565,7 @@ function frame() {
     lastFrameAt = now;
     if (views.balls.classList.contains('is-active')) {
         const ratio = Math.min(1, currentRemaining() / totalMs);
-        if (isWorkMode) stepBalls(dt, ratio);
-        else stepRain(dt, ratio);
+        stepBalls(dt, ratio);
     }
     renderShapes();
     frameId = isRunning ? requestAnimationFrame(frame) : null;
