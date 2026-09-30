@@ -40,9 +40,20 @@ const skipBtn = document.getElementById('skip-btn');
 
 const workTimeInput = document.getElementById('work-time');
 const breakTimeInput = document.getElementById('break-time');
+const soundBtn = document.getElementById('sound-btn');
+const reviewDialog = document.getElementById('review-dialog');
+const reviewWrite = document.getElementById('review-write');
+const reviewLater = document.getElementById('review-later');
+
+// 感想を書いてもらうnoteの記事。空のうちはポップアップを出さない（記事を公開したらURLを入れる）
+const REVIEW_URL = '';
+const REVIEW_AT_BREAK = 3;                 // 何回目のひと休みで出すか
+const REVIEW_SNOOZE_MS = 30 * 24 * 60 * 60 * 1000; // 「今はしない」の後、出さない期間（30日）
 
 // --- State ---
 let isRunning = false;
+let soundOn = true;    // BGM（集中＝ブラウンノイズ、休憩＝森の音）を流すか
+let breaksReached = 0; // このページを開いてから、集中を終えて休憩に入った回数
 let isWorkMode = true; // true = 集中, false = 休憩
 let logicInterval = null; // モード切り替え・音・文字の更新（裏のタブでも動く）
 let frameId = null;       // 扇形・バーの滑らかな描画（画面が見えている間だけ）
@@ -228,8 +239,56 @@ function playForestSound() {
 }
 
 function playModeSound() {
+    if (!soundOn) { stopAudio(); return; }
     if (isWorkMode) playNoise('brown');
     else playForestSound();
+}
+
+// --- BGMのオン・オフ（前回の設定を覚えておく） ---
+function setSound(on) {
+    soundOn = on;
+    soundBtn.setAttribute('aria-pressed', String(on));
+    soundBtn.title = on ? 'BGMをオフにする' : 'BGMをオンにする';
+    try { localStorage.setItem('pomodoro-sound', on ? 'on' : 'off'); } catch (e) {}
+    if (!isRunning) return;
+    if (on) { initAudio(); playModeSound(); } else stopAudio();
+}
+
+// --- 設定した分数を覚えておく ---
+function saveMinutes() {
+    try {
+        localStorage.setItem('pomodoro-minutes', JSON.stringify({ work: workTimeInput.value, break: breakTimeInput.value }));
+    } catch (e) {}
+}
+
+function loadSettings() {
+    try {
+        const m = JSON.parse(localStorage.getItem('pomodoro-minutes') || 'null');
+        if (m) {
+            if (m.work) workTimeInput.value = m.work;
+            if (m.break) breakTimeInput.value = m.break;
+        }
+        if (localStorage.getItem('pomodoro-sound') === 'off') setSound(false);
+    } catch (e) {}
+}
+
+// --- 感想のお願い：3回目のひと休みに一度だけ ---
+function maybeAskReview() {
+    if (!REVIEW_URL || breaksReached !== REVIEW_AT_BREAK || !reviewDialog.showModal) return;
+    try {
+        const state = localStorage.getItem('pomodoro-review');
+        if (state === 'done') return;
+        if (state && Date.now() < Number(state)) return;
+    } catch (e) {}
+    reviewWrite.href = REVIEW_URL;
+    reviewDialog.showModal();
+}
+
+function closeReview(wrote) {
+    try {
+        localStorage.setItem('pomodoro-review', wrote ? 'done' : String(Date.now() + REVIEW_SNOOZE_MS));
+    } catch (e) {}
+    reviewDialog.close();
 }
 
 // --- 表示の切り替え ---
@@ -1091,6 +1150,7 @@ function logicTick() {
         flipGlass(0);
         switchMode(!isWorkMode);
         announce(isWorkMode ? '休憩が終わりました。集中タイムです' : '集中タイムが終わりました。ひと休みしましょう');
+        if (!isWorkMode) { breaksReached++; maybeAskReview(); }
     }
     renderText();
 }
@@ -1156,11 +1216,20 @@ resetBtn.addEventListener('click', resetTimer);
 skipBtn.addEventListener('click', skipMode);
 
 workTimeInput.addEventListener('change', () => {
+    readMinutes(workTimeInput, 25);
+    saveMinutes();
     if (!isRunning && isWorkMode) switchMode(true);
 });
 breakTimeInput.addEventListener('change', () => {
+    readMinutes(breakTimeInput, 5);
+    saveMinutes();
     if (!isRunning && !isWorkMode) switchMode(false);
 });
+
+soundBtn.addEventListener('click', () => setSound(!soundOn));
+reviewWrite.addEventListener('click', () => closeReview(true));
+reviewLater.addEventListener('click', () => closeReview(false));
+reviewDialog.addEventListener('cancel', (e) => { e.preventDefault(); closeReview(false); }); // Escキー
 
 // スペースキーでスタート・一時停止（入力欄やボタンを操作中は除く）
 document.addEventListener('keydown', (e) => {
@@ -1175,6 +1244,7 @@ window.addEventListener('resize', () => renderShapes());
 
 // --- Initialize ---
 buildStars();
+loadSettings();
 try {
     const saved = localStorage.getItem('pomodoro-view');
     if (saved && (views[saved] || SCENES.includes(saved))) setView(saved);

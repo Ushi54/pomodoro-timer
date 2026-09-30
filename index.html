@@ -14,21 +14,34 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
     <meta property="og:title" content="Visual Pomodoro">
-    <meta property="og:description" content="音声入力とAIとの壁打ち（Voice Driven Development）のみで構築された、完全オリジナルのポモドーロタイマー。環境音の自動生成機能を搭載。">
+    <meta name="description" content="残り時間が目で見て分かるポモドーロタイマー。円・砂時計・空・植物・ろうそく・コーヒー・本など8つの表示と、集中と休憩で切り替わる環境音。ホーム画面に追加してアプリのように使えます。">
+    <meta property="og:description" content="残り時間が目で見て分かるポモドーロタイマー。円・砂時計・空・植物・ろうそく・コーヒー・本など8つの表示と、集中と休憩で切り替わる環境音。">
     <meta property="og:type" content="website">
-    <meta property="og:image" content="https://raw.githubusercontent.com/Ushi54/pomodoro-timer/main/og-image.jpg">
+    <meta property="og:url" content="https://pomodoro-timer-teal-one.vercel.app/">
+    <meta property="og:image" content="https://pomodoro-timer-teal-one.vercel.app/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&family=Pacifico&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="style.css?v=24">
 </head>
 <body class="is-focus">
     <div class="page">
         <header class="top">
-            <h1 class="title">Visual Pomodoro</h1>
+            <div class="top__row">
+                <h1 class="title">Visual Pomodoro</h1>
+                <button type="button" class="sound-btn" id="sound-btn" aria-pressed="true" aria-label="BGM" title="BGMをオフにする">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+                        <g class="sound-btn__on"><path d="M15.5 9a4 4 0 0 1 0 6" /><path d="M18 6.5a7.5 7.5 0 0 1 0 11" /></g>
+                        <g class="sound-btn__off"><path d="M16 9.5l5 5M21 9.5l-5 5" /></g>
+                    </svg>
+                </button>
+            </div>
             <div class="view-switch" role="group" aria-label="タイマーの表示">
                 <button type="button" class="view-switch__btn" data-view="plate" aria-pressed="true" aria-label="円" title="円"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12V3a9 9 0 1 0 9 9z" fill="currentColor" stroke="none"/></svg></button>
                 <button type="button" class="view-switch__btn" data-view="bar" aria-pressed="false" aria-label="バー" title="バー"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="8" rx="4"/><rect x="4.5" y="10" width="9" height="4" rx="2" fill="currentColor" stroke="none"/></svg></button>
@@ -172,11 +185,21 @@
             <p class="hint">スペースキーでもスタート・一時停止できます</p>
         </main>
 
+        <!-- 3回目のひと休みに一度だけ出す、感想のお願い -->
+        <dialog class="ask" id="review-dialog" aria-labelledby="review-title">
+            <p class="ask__title" id="review-title">3回目のひと休みです</p>
+            <p class="ask__text">このタイマーを少しでも気に入ってもらえたら、noteの記事にコメントで感想をいただけるとうれしいです。今後の開発の励みになります。</p>
+            <div class="ask__actions">
+                <a class="btn btn--main" id="review-write" href="https://note.com/ushi5432" target="_blank" rel="noopener">感想を書く</a>
+                <button type="button" class="btn btn--quiet" id="review-later">今はしない</button>
+            </div>
+        </dialog>
+
         <footer class="foot">
             <p>Created by Ushi ／ <a href="https://github.com/Ushi54/pomodoro-timer" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
-    <script src="pomodoro.js?v=22"></script>
+    <script src="pomodoro.js?v=24"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');

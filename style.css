@@ -60,6 +60,44 @@ body {
     gap: 12px 16px;
 }
 
+.top__row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+/* BGMのオン・オフ：目立たない小さなアイコン */
+.sound-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    opacity: 0.55;
+}
+
+.sound-btn:hover { opacity: 0.85; background: var(--mode-mist); }
+
+.sound-btn svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sound-btn[aria-pressed="true"] .sound-btn__off,
+.sound-btn[aria-pressed="false"] .sound-btn__on { display: none; }
+
 .title {
     margin: 0;
     white-space: nowrap;
@@ -449,6 +487,44 @@ body.is-break .sky__ground { fill: #2D241E; }
     margin: 16px 0 0;
     font-size: 13px;
     opacity: 0.7;
+}
+
+/* ---------- 感想のお願い ---------- */
+.ask {
+    width: min(100% - 32px, 380px);
+    padding: 24px 24px 20px;
+    color: var(--ink);
+    background: var(--table);
+    border: 1px solid var(--sand-soft);
+    border-radius: 24px;
+    text-align: center;
+}
+
+.ask::backdrop { background: rgba(45, 36, 30, 0.35); }
+
+.ask__title {
+    margin: 0 0 8px;
+    font-weight: 700;
+    font-size: 17px;
+}
+
+.ask__text {
+    margin: 0;
+    font-size: 15px;
+}
+
+.ask__actions {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.ask .btn--main {
+    display: inline-block;
+    text-decoration: none;
+    color: var(--ink);
 }
 
 /* ---------- フッター ---------- */
