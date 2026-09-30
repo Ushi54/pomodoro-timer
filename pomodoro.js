@@ -430,12 +430,13 @@ const LEAF_COUNT = 8;
 const PLANT = { x: 160, base: 176, maxH: 128 };
 // 休憩の流れ（休憩の進み具合 0〜1 で区切る）
 const SHOP = {
-    walkIn: [0, 0.15],   // 花屋さんが左から鉢植えの横まで歩いてくる
-    cut: [0.15, 0.3],    // ハサミで茎を切る
-    wrap: [0.3, 0.5],    // 包み紙で包んで、リボンを結ぶ
-    deliver: [0.5, 0.95], // お客さんのところまで歩く
-    // 残り（0.95〜1）で手渡し
-    enterX: 20, standX: 92, handOff: 190, customer: 282, hold: 38, holdY: 150,
+    walkIn: [0, 0.12],     // 花屋さんが左から鉢植えの横まで歩いてくる
+    cut: [0.12, 0.26],     // ハサミで茎を切る
+    wrap: [0.26, 0.44],    // 包み紙で包んで、リボンを結ぶ
+    deliver: [0.44, 0.8],  // お客さんのところまで歩く
+    handOver: [0.8, 0.88], // 手渡す
+    leave: [0.88, 1],      // お客さんが満足そうに歩いて帰り、画面の外へ
+    enterX: 20, standX: 92, handOff: 190, customer: 282, exitX: 380, hold: 38, holdY: 150,
 };
 
 function stemX(y) {
@@ -551,7 +552,7 @@ function drawBouquet(ctx, x, y, wrap = 1, ribbon = 1) {
 
 // 人。dir = 向き（1 = 右向き、-1 = 左向き）。hand = 手の先の位置（なければ腕を下ろす）
 function drawPerson(ctx, p) {
-    const { x, dir, body, t, hand, apron, walking } = p;
+    const { x, dir, body, t, hand, apron, walking, happy } = p;
     const bob = walking ? Math.abs(Math.sin(t * 6)) * 3 : 0;
     const y0 = -bob;
     // 足（歩いている時は交互に動く）
@@ -609,8 +610,15 @@ function drawPerson(ctx, p) {
     ctx.strokeStyle = C.ink;
     ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.arc(ex, 100 + y0, 5, 0.2 * Math.PI, 0.8 * Math.PI);
+    ctx.arc(ex, 100 + y0, happy ? 6.5 : 5, 0.15 * Math.PI, 0.85 * Math.PI);
     ctx.stroke();
+    if (happy) {
+        ctx.fillStyle = C.sandSoft;
+        ctx.beginPath();
+        ctx.arc(ex - 10, 101 + y0, 3, 0, Math.PI * 2);
+        ctx.arc(ex + 10, 101 + y0, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }
 
 // ハサミ（open = 0〜1 の開き具合）
@@ -652,13 +660,18 @@ function drawPlant(ctx, ratio, t) {
     const cut = span(q, SHOP.cut);
     const wrap = span(q, SHOP.wrap);
     const deliver = span(q, SHOP.deliver);
-    const handed = clamp01((q - SHOP.deliver[1]) / (1 - SHOP.deliver[1]));
+    const handed = span(q, SHOP.handOver);
+    const leave = span(q, SHOP.leave);
 
     // 花屋さんの位置：左から歩いてきて、鉢植えの横で作業し、お客さんのところへ歩く
     const floristX = q < SHOP.cut[0]
         ? SHOP.enterX + (SHOP.standX - SHOP.enterX) * walkIn
         : SHOP.standX + (SHOP.handOff - SHOP.standX) * deliver;
-    const walking = isRunning && ((walkIn > 0 && walkIn < 1) || (deliver > 0 && deliver < 1));
+    const floristWalking = isRunning && ((walkIn > 0 && walkIn < 1) || (deliver > 0 && deliver < 1));
+    // お客さん：受け取ったら右を向いて歩いて帰る
+    // 歩き出しはゆっくり、だんだん速く（右端から出るので、帰っていく姿を長めに見せる）
+    const custX = SHOP.customer + (SHOP.exitX - SHOP.customer) * Math.pow(leave, 1.8);
+    const custWalking = isRunning && leave > 0 && leave < 1;
 
     // 足元の点線（花屋さんがこれから歩く道のり）
     ctx.fillStyle = C.sandSoft;
@@ -680,42 +693,58 @@ function drawPlant(ctx, ratio, t) {
     // 切る前の植物（切り終わる瞬間に、花屋さんの手に移る）
     if (cut < 1) drawPlantBody(ctx, 1);
 
-    // お客さん（花束が近づくと手を伸ばす）
-    const reach = clamp01((deliver - 0.7) / 0.3);
-    const custHand = [SHOP.customer - 20 - 16 * reach, 158 - 12 * reach];
-    drawPerson(ctx, { x: SHOP.customer, dir: -1, body: C.sageSoft, t, hand: custHand });
+    // お客さん（花束が近づくと手を伸ばし、受け取ったら花束を持って帰る）
+    const custBob = custWalking ? Math.abs(Math.sin(t * 6)) * 3 : 0;
+    let custHand, custDir = -1;
+    if (leave > 0) {
+        custDir = 1;
+        custHand = [custX + SHOP.hold - 6, SHOP.holdY - 2 - custBob];
+    } else {
+        const reach = clamp01((deliver - 0.7) / 0.3);
+        custHand = [SHOP.customer - 20 - 16 * reach, 158 - 12 * reach];
+    }
+    drawPerson(ctx, { x: custX, dir: custDir, body: C.sageSoft, t, hand: custHand, walking: custWalking, happy: handed > 0.5 });
 
     // 花屋さんの手の位置
-    const bob = walking ? Math.abs(Math.sin(t * 6)) * 3 : 0;
+    const bob = floristWalking ? Math.abs(Math.sin(t * 6)) * 3 : 0;
     let hand;
     if (cut > 0 && cut < 1) {
         // 茎を切っている間は、ハサミを茎の根元に当てる
         hand = [stemX(158) - 10, 158];
+    } else if (leave > 0) {
+        // 見送り：手を振る
+        hand = [floristX + 22 + Math.sin(t * 5) * 5, 100];
     } else if (cut >= 1) {
         hand = [floristX + SHOP.hold - 6, SHOP.holdY - 10 - bob];
     }
-    drawPerson(ctx, { x: floristX, dir: 1, body: C.sage, t, hand, apron: true, walking });
+    drawPerson(ctx, { x: floristX, dir: 1, body: C.sage, t, hand, apron: true, walking: floristWalking, happy: handed > 0.5 });
 
     // ハサミ：チョキチョキ動かす
     if (cut > 0 && cut < 1) {
         drawScissors(ctx, stemX(158) - 2, 158, Math.abs(Math.sin(t * 7)));
     }
 
-    // 花束：切った花を手に持ち、包み紙とリボンで仕上げる。最後はお客さんの手に渡る
+    // 花束：切った花を手に持ち、包み紙とリボンで仕上げる。お客さんの手に渡り、一緒に帰っていく
     if (cut >= 1) {
-        let bx = floristX + SHOP.hold;
-        let by = SHOP.holdY - bob;
-        if (handed > 0) { bx += (custHand[0] - 2 - bx) * handed; by += 8 * handed; }
+        let bx, by;
+        if (leave > 0) {
+            bx = custX + SHOP.hold;
+            by = SHOP.holdY + 8 - custBob;
+        } else {
+            bx = floristX + SHOP.hold;
+            by = SHOP.holdY - bob;
+            if (handed > 0) { bx += (custHand[0] - 2 - bx) * handed; by += 8 * handed; }
+        }
         drawBouquet(ctx, bx, by, clamp01(wrap / 0.7), clamp01((wrap - 0.7) / 0.3));
     }
 
-    // 手渡したら、ハートがふわっと浮かぶ
+    // 手渡したら、お客さんの頭の上にハートがふわっと浮かぶ（帰り道もついていく）
     if (handed > 0) {
         for (let h = 0; h < 3; h++) {
             const f = (t * 0.5 + h / 3) % 1;
             ctx.globalAlpha = handed * (1 - f);
             ctx.fillStyle = h % 2 ? C.sand : C.sageSoft;
-            drawHeart(ctx, (floristX + SHOP.customer) / 2 + (h - 1) * 16, 64 - f * 36, 5 + h);
+            drawHeart(ctx, custX - 10 + (h - 1) * 14, 64 - f * 36, 5 + h);
         }
         ctx.globalAlpha = 1;
     }
