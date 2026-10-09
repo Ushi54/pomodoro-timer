@@ -398,6 +398,11 @@ body.is-break .sky__ground { fill: #2D241E; }
     border: 1px solid var(--sand-soft);
 }
 
+.scene.is-frameless {
+    background: transparent;
+    border-color: transparent;
+}
+
 .scene__readout {
     display: flex;
     flex-direction: column;

@@ -304,7 +304,12 @@ function setView(name) {
         if (on) btn.parentElement.scrollLeft = Math.max(0, btn.offsetLeft - btn.parentElement.clientWidth / 2 + btn.offsetWidth / 2);
     });
     try { localStorage.setItem('pomodoro-view', name); } catch (e) {}
-    if (isScene) { sceneCanvas.setAttribute('aria-label', `${viewLabel(name)}のタイマー`); renderShapes(); }
+    if (isScene) {
+        sceneCanvas.setAttribute('aria-label', `${viewLabel(name)}のタイマー`);
+        // ろうそく・コーヒー・本は枠なしで、テーブルに直接置いたように見せる
+        sceneCanvas.classList.toggle('is-frameless', FRAMELESS_SCENES.includes(name));
+        renderShapes();
+    }
 }
 
 function viewLabel(name) {
@@ -420,6 +425,7 @@ function buildStars() {
 // --- キャンバスで描く表示（植物・ろうそく・コーヒー・本） ---
 // どれも 320×220 の箱の中に描く。集中は緑系、休憩は茶系。休憩に入ると0.8秒かけて色が変わる。
 const SCENES = ['plant', 'candle', 'coffee', 'book'];
+const FRAMELESS_SCENES = ['candle', 'coffee', 'book'];
 const C = {
     white: '#FFFFFF', ink: '#2D241E',
     sage: '#6F9B88', sageSoft: '#A3C2AD', sageMist: '#DCE5D2',
