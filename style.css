@@ -409,6 +409,56 @@ body.is-break .sky__ground { fill: #2D241E; }
     align-items: center;
 }
 
+/* ---------- 集中モード：タップした表示だけを画面いっぱいに ---------- */
+.view { cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
+
+.zen-hint { display: none; }
+
+body.is-zen .view { cursor: zoom-out; }
+body.is-zen .top,
+body.is-zen .plan,
+body.is-zen .actions,
+body.is-zen .hint,
+body.is-zen .foot { display: none; }
+
+body.is-zen .page {
+    width: 100%;
+    max-width: none;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
+body.is-zen .stage {
+    justify-content: center;
+    padding-top: 0;
+}
+
+body.is-zen .view--plate { width: min(92vw, 76vh, 680px); }
+body.is-zen .glass { width: min(70vw, 48vh, 360px); }
+body.is-zen .sky,
+body.is-zen .scene { max-width: min(100%, 110vh, 900px); }
+body.is-zen .view--bar { width: min(100%, 900px); }
+
+body.is-zen .zen-hint {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: max(24px, env(safe-area-inset-bottom));
+    margin: 0;
+    text-align: center;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    animation: zen-hint 2.8s ease forwards;
+}
+
+@keyframes zen-hint {
+    0%, 70% { opacity: 0.6; }
+    100% { opacity: 0; }
+}
+
 /* ---------- 設定の一文 ---------- */
 .plan {
     margin: 32px 0 0;

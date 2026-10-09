@@ -1248,6 +1248,36 @@ document.addEventListener('keydown', (e) => {
 
 window.addEventListener('resize', () => renderShapes());
 
+// --- 集中モード：表示をタップすると、その表示だけを画面いっぱいに出す。もう一度タップかEscで戻る ---
+const zenHint = document.getElementById('zen-hint');
+
+function setZen(on) {
+    document.body.classList.toggle('is-zen', on);
+    if (on) {
+        // 「タップで戻る」の案内を毎回最初から表示し直す
+        zenHint.style.animation = 'none';
+        void zenHint.offsetWidth;
+        zenHint.style.animation = '';
+    }
+    renderShapes();
+}
+
+// 入る時は表示をタップ。戻る時は画面のどこをタップしてもよい
+Object.values(views).forEach((el) => {
+    el.addEventListener('click', (e) => {
+        if (document.body.classList.contains('is-zen')) return;
+        e.stopPropagation();
+        setZen(true);
+    });
+});
+document.addEventListener('click', (e) => {
+    if (!document.body.classList.contains('is-zen') || reviewDialog.contains(e.target)) return;
+    setZen(false);
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('is-zen') && !reviewDialog.open) setZen(false);
+});
+
 // iPhoneでは、ホーム画面に戻るなどしてアプリが裏に回るとBGMが止められる。
 // アプリに戻ったら鳴らし直し、それでも止まっている時は次のタップで再開する。
 function resumeSoundIfNeeded() {

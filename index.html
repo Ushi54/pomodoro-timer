@@ -27,7 +27,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&family=Pacifico&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="style.css?v=28">
+    <link rel="stylesheet" href="style.css?v=30">
 </head>
 <body class="is-focus">
     <div class="page">
@@ -183,6 +183,7 @@
                 <button type="button" class="btn btn--quiet" id="skip-btn">休憩に入る</button>
             </div>
             <p class="hint">スペースキーでもスタート・一時停止できます</p>
+            <p class="zen-hint" id="zen-hint" aria-hidden="true">タップで戻る</p>
         </main>
 
         <!-- 3回目のひと休みに一度だけ出す、感想のお願い -->
@@ -199,7 +200,7 @@
             <p>Created by Ushi ／ <a href="https://github.com/Ushi54/pomodoro-timer" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
-    <script src="pomodoro.js?v=28"></script>
+    <script src="pomodoro.js?v=30"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
