@@ -419,7 +419,12 @@ body.is-zen .top,
 body.is-zen .plan,
 body.is-zen .actions,
 body.is-zen .hint,
-body.is-zen .foot { display: none; }
+body.is-zen .foot,
+body.is-zen .plate__readout,
+body.is-zen .bar__readout,
+body.is-zen .glass__readout,
+body.is-zen .sky__readout,
+body.is-zen .scene__readout { display: none; } /* 集中モードは絵だけ（残り時間の数字も出さない） */
 
 body.is-zen .page {
     width: 100%;
