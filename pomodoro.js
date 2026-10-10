@@ -510,17 +510,70 @@ function stemX(y) {
     return PLANT.x + Math.sin(k * Math.PI) * 6;
 }
 
-function drawLeaf(ctx, x, y, angle, len, color) {
+function drawLeaf(ctx, x, y, angle, len, color, width = 0.38) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(len * 0.5, -len * 0.38, len, 0);
-    ctx.quadraticCurveTo(len * 0.5, len * 0.38, 0, 0);
+    ctx.quadraticCurveTo(len * 0.5, -len * width, len, 0);
+    ctx.quadraticCurveTo(len * 0.5, len * width, 0, 0);
     ctx.fillStyle = color;
     ctx.fill();
     ctx.restore();
+}
+
+// 植物は3種類。集中を始めるたびにランダムで選ぶ（前回と同じ種類は続けない）
+const PLANT_KINDS = ['daisy', 'tulip', 'sunflower'];
+let plantKind = PLANT_KINDS[Math.floor(Math.random() * PLANT_KINDS.length)];
+
+function pickPlantKind() {
+    const others = PLANT_KINDS.filter((k) => k !== plantKind);
+    plantKind = others[Math.floor(Math.random() * others.length)];
+}
+
+// チューリップの花：(x, y) は花の中心
+function drawTulip(ctx, x, y, size, color) {
+    ctx.fillStyle = color;
+    for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(x + side * 5 * size, y, 6 * size, 11 * size, side * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = C.sandSoft;
+    ctx.beginPath();
+    ctx.ellipse(x, y - 1 * size, 6 * size, 12 * size, 0, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// ひまわりの花：(x, y) は花の中心
+function drawSunflower(ctx, x, y, size) {
+    ctx.fillStyle = C.sandSoft;
+    for (let p = 0; p < 14; p++) {
+        const a = (p / 14) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.ellipse(x + Math.cos(a) * 12 * size, y + Math.sin(a) * 12 * size, 6.5 * size, 3 * size, a, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = C.ink;
+    ctx.beginPath();
+    ctx.arc(x, y, 8 * size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C.sand;
+    for (let d = 0; d < 6; d++) {
+        const a = (d / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(a) * 4 * size, y + Math.sin(a) * 4 * size, 1.1 * size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+// 種類ごとの花（花束でも使う）
+function drawHead(ctx, x, y, size, tone = 0) {
+    if (size <= 0) return;
+    if (plantKind === 'tulip') drawTulip(ctx, x, y, size, tone ? C.sandSoft : C.sand);
+    else if (plantKind === 'sunflower') drawSunflower(ctx, x, y, size * 0.75);
+    else drawFlower(ctx, x, y, size, tone ? C.sandMist : C.sandSoft);
 }
 
 function drawFlower(ctx, x, y, size, petal) {
@@ -543,19 +596,67 @@ function drawPottedPlant(ctx, grow, parts = { plant: true, pot: true }) {
     if (parts.pot) drawPot(ctx);
 }
 
-function drawPlantBody(ctx, grow) {
-    const stemH = PLANT.maxH * clamp01(grow / 0.88);
-    const top = PLANT.base - stemH;
-
+function drawStem(ctx, top, width) {
     ctx.strokeStyle = C.sage;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = width;
     ctx.lineCap = 'round';
     ctx.beginPath();
     for (let y = PLANT.base; y >= top; y -= 2) {
         if (y === PLANT.base) ctx.moveTo(stemX(y), y); else ctx.lineTo(stemX(y), y);
     }
     ctx.stroke();
+}
 
+function drawPlantBody(ctx, grow) {
+    const bloom = clamp01((grow - 0.88) / 0.12);
+
+    if (plantKind === 'tulip') {
+        // チューリップ：根元から細長い葉が2枚。茎の先につぼみができて、最後に開く
+        const stemH = PLANT.maxH * 0.85 * clamp01(grow / 0.88);
+        const top = PLANT.base - stemH;
+        const leaf = clamp01(grow / 0.35);
+        drawStem(ctx, top, 3.5);
+        drawLeaf(ctx, stemX(PLANT.base - 4), PLANT.base - 4, -Math.PI / 2 - 0.45, 70 * leaf, C.sage, 0.2);
+        drawLeaf(ctx, stemX(PLANT.base - 4), PLANT.base - 4, -Math.PI / 2 + 0.4, 60 * leaf, C.sageSoft, 0.2);
+        const bud = clamp01((grow - 0.5) / 0.38);
+        if (bud > 0 && bloom < 1) {
+            ctx.fillStyle = C.sageSoft;
+            ctx.beginPath();
+            ctx.ellipse(stemX(top), top - 6 * bud, 5 * bud, 9 * bud, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        drawHead(ctx, stemX(top), top - 10, bloom);
+        return;
+    }
+
+    if (plantKind === 'sunflower') {
+        // ひまわり：太い茎に大きな葉。最後に大きな花が咲く
+        const stemH = PLANT.maxH * 0.95 * clamp01(grow / 0.88);
+        const top = PLANT.base - stemH;
+        drawStem(ctx, top, 5);
+        for (let i = 0; i < 5; i++) {
+            const h = PLANT.maxH * (0.15 + 0.6 * (i / 4));
+            const scale = clamp01((stemH - h) / 16);
+            if (scale <= 0) continue;
+            const side = i % 2 ? 1 : -1;
+            const y = PLANT.base - h;
+            drawLeaf(ctx, stemX(y), y, side > 0 ? -0.35 : Math.PI + 0.35, (42 - i * 4) * scale, i % 2 ? C.sage : C.sageSoft, 0.5);
+        }
+        if (grow > 0.6 && bloom < 1) {
+            const bud = clamp01((grow - 0.6) / 0.28);
+            ctx.fillStyle = C.sageSoft;
+            ctx.beginPath();
+            ctx.arc(stemX(top), top - 6, 7 * bud, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        drawHead(ctx, stemX(top), top - 8, bloom * 1.5);
+        return;
+    }
+
+    // デイジー：互い違いに葉が8枚。最後に白っぽい花が咲く
+    const stemH = PLANT.maxH * clamp01(grow / 0.88);
+    const top = PLANT.base - stemH;
+    drawStem(ctx, top, 4);
     for (let i = 0; i < LEAF_COUNT; i++) {
         const h = PLANT.maxH * (0.12 + 0.72 * (i / (LEAF_COUNT - 1)));
         const scale = clamp01((stemH - h) / 16);
@@ -564,9 +665,7 @@ function drawPlantBody(ctx, grow) {
         const y = PLANT.base - h;
         drawLeaf(ctx, stemX(y), y, side > 0 ? -0.5 : Math.PI + 0.5, (34 - i * 1.6) * scale, i % 2 ? C.sage : C.sageSoft);
     }
-
-    const bloom = clamp01((grow - 0.88) / 0.12);
-    if (bloom > 0) drawFlower(ctx, stemX(top), top - 4, bloom, C.sandSoft);
+    drawHead(ctx, stemX(top), top - 4, bloom);
 }
 
 function drawPot(ctx) {
@@ -586,9 +685,9 @@ function drawBouquet(ctx, x, y, wrap = 1, ribbon = 1) {
     drawLeaf(ctx, x - 2, y - 34, Math.PI + 0.9, 26, C.sage);
     drawLeaf(ctx, x + 2, y - 34, -0.9, 26, C.sageSoft);
     drawLeaf(ctx, x, y - 40, -Math.PI / 2 - 0.25, 22, C.sage);
-    drawFlower(ctx, x - 13, y - 50, 0.8, C.sandSoft);
-    drawFlower(ctx, x + 13, y - 52, 0.8, C.sandMist);
-    drawFlower(ctx, x, y - 64, 0.9, C.sandSoft);
+    drawHead(ctx, x - 13, y - 50, 0.8, 0);
+    drawHead(ctx, x + 13, y - 52, 0.8, 1);
+    drawHead(ctx, x, y - 64, 0.9, 0);
     // 茎の束
     ctx.strokeStyle = C.sage;
     ctx.lineWidth = 3;
@@ -1128,6 +1227,7 @@ function readMinutes(input, fallback) {
 
 function switchMode(isWork) {
     isWorkMode = isWork;
+    if (isWork) pickPlantKind();
     const mins = isWork ? readMinutes(workTimeInput, 25) : readMinutes(breakTimeInput, 5);
     totalMs = mins * 60 * 1000;
     remainingMs = totalMs;
