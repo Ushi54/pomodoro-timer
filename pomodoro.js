@@ -818,14 +818,15 @@ function drawPlant(ctx, ratio, t) {
 // --- ろうそく：集中＝火がゆらぎながら短くなる／休憩＝火が消え、煙が細くなって消える ---
 function drawCandle(ctx, ratio, t) {
     const k = toneK();
-    const bodyH = isWorkMode ? 16 + 116 * ratio : 16;
+    // 一番長い時でも、火の明かり（半径58）がキャンバスの上の端で切れない長さにする
+    const bodyH = isWorkMode ? 16 + 96 * ratio : 16;
     const bottom = 190;
     const top = bottom - bodyH;
     const cx = 160;
 
     // 火の明かり（集中中だけ）
     if (isWorkMode) {
-        const g = ctx.createRadialGradient(cx, top - 18, 2, cx, top - 18, 70);
+        const g = ctx.createRadialGradient(cx, top - 18, 2, cx, top - 18, 58);
         g.addColorStop(0, 'rgba(224, 198, 165, 0.55)');
         g.addColorStop(1, 'rgba(224, 198, 165, 0)');
         ctx.fillStyle = g;
