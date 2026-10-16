@@ -648,3 +648,66 @@ body.is-zen .zen-hint {
     .hint { display: none; }
     .btn--main { flex-basis: 100%; }
 }
+
+/* ---------- スマホを横にした時：左に絵、右に操作の2列 ---------- */
+@media (orientation: landscape) and (max-height: 520px) {
+    .page {
+        --h: calc(100dvh - 24px); /* 絵に使える高さ（上下の余白を引いた分） */
+        display: grid;
+        width: 100%;
+        max-width: 1000px;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+        padding: 12px max(20px, env(safe-area-inset-right)) 12px max(20px, env(safe-area-inset-left));
+        grid-template-columns: minmax(0, 1.15fr) minmax(280px, 1fr);
+        grid-template-rows: 1fr auto auto auto 1fr;
+        grid-template-areas:
+            "visual ."
+            "visual top"
+            "visual plan"
+            "visual actions"
+            "visual .";
+        column-gap: 32px;
+    }
+
+    /* 中身を2列の中に直接並べる */
+    .stage { display: contents; }
+    .top { grid-area: top; }
+    .plan { grid-area: plan; margin-top: 18px; }
+    .actions { grid-area: actions; margin-top: 14px; }
+    .btn--main { flex-basis: 100%; }
+    .hint, .foot { display: none; }
+
+    .view {
+        grid-area: visual;
+        align-self: center;
+        justify-self: center;
+        min-height: 0;
+    }
+
+    .time { font-size: 44px; }
+    .phase { margin-top: 4px; }
+
+    /* 絵の大きさは、画面の高さに収まるように決める（下の残り時間の分も引く） */
+    .view--plate { width: min(100%, var(--h)); }
+    .view--bar { padding: 0; gap: 16px; }
+    .bar__readout .time { font-size: 56px; }
+    .view--glass { gap: 8px; }
+    .glass { width: auto; height: calc(var(--h) - 80px); }
+    .view--sky, .view--scene { gap: 10px; }
+    .sky { width: min(100%, calc((var(--h) - 80px) * 1.6)); }
+    .scene { width: min(100%, calc((var(--h) - 80px) * 320 / 220)); }
+
+    /* 集中モード（絵だけ）：1列にして、画面の中央に大きく */
+    body.is-zen .page {
+        max-width: none;
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        grid-template-areas: "visual";
+    }
+    body.is-zen .view--plate { width: min(100%, var(--h)); }
+    body.is-zen .glass { height: var(--h); }
+    body.is-zen .sky { max-width: none; width: min(100%, calc(var(--h) * 1.6)); }
+    body.is-zen .scene { max-width: none; width: min(100%, calc(var(--h) * 320 / 220)); }
+}
