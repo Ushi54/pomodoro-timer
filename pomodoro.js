@@ -111,12 +111,18 @@ function stopAudio() {
     }
 }
 
+// 鳴り始めは少し大きめにして、集中／休憩に切り替わったことに気づきやすくする。
+// 0.5秒でふだんの約1.8倍まで上げ、そこから3秒かけてふだんの音量に戻す
+const SOUND_BOOST = 1.8;
+const BOOST_RISE_SEC = 0.5;
+const BOOST_SETTLE_SEC = 3.0;
+
 function fadeNodeIn(gainNode, targetGain) {
     if (!audioCtx) return;
-    const fadeInTime = 2.0;
     const now = audioCtx.currentTime;
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(targetGain, now + fadeInTime);
+    gainNode.gain.linearRampToValueAtTime(targetGain * SOUND_BOOST, now + BOOST_RISE_SEC);
+    gainNode.gain.linearRampToValueAtTime(targetGain, now + BOOST_RISE_SEC + BOOST_SETTLE_SEC);
 }
 
 function playNoise(type) {
