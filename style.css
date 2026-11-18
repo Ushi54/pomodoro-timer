@@ -711,3 +711,86 @@ body.is-zen .zen-hint {
     body.is-zen .sky { max-width: none; width: min(100%, calc(var(--h) * 1.6)); }
     body.is-zen .scene { max-width: none; width: min(100%, calc(var(--h) * 320 / 220)); }
 }
+
+/* ---------- PC・タブレット対応（2026-11-18 社長の決定「アプリは PC・タブレット・スマホに対応する」） ---------- */
+
+/* タブレット縦（iPad など）：スマホと同じ1列のまま、全体を拡大する（集中モードは絵の大きさを画面から決めているので拡大しない） */
+@media (orientation: portrait) and (min-width: 700px) {
+    body:not(.is-zen) .page {
+        zoom: 1.2;
+        min-height: calc(100vh / 1.2);
+        min-height: calc(100dvh / 1.2);
+    }
+}
+@media (orientation: portrait) and (min-width: 1000px) and (min-height: 1200px) {
+    body:not(.is-zen) .page {
+        zoom: 1.5;
+        min-height: calc(100vh / 1.5);
+        min-height: calc(100dvh / 1.5);
+    }
+}
+
+/* PC・タブレット横：左に大きく絵、右に操作の2列（スマホを横にした時と同じ考え方を、大きい画面向けに） */
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 521px) {
+    .page {
+        --h: min(calc(100dvh - 140px), 680px); /* 絵に使える高さ */
+        display: grid;
+        width: 100%;
+        max-width: 1240px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 32px 56px 20px;
+        grid-template-columns: minmax(0, 1.2fr) minmax(340px, 1fr);
+        grid-template-rows: 1fr auto auto auto auto 1fr auto;
+        grid-template-areas:
+            "visual ."
+            "visual top"
+            "visual plan"
+            "visual actions"
+            "visual hint"
+            "visual ."
+            "foot foot";
+        column-gap: 72px;
+    }
+
+    .stage { display: contents; }
+    .top { grid-area: top; }
+    .plan { grid-area: plan; margin-top: 32px; }
+    .actions { grid-area: actions; margin-top: 24px; }
+    .hint { grid-area: hint; margin-top: 16px; }
+    .foot { grid-area: foot; }
+
+    .view {
+        grid-area: visual;
+        align-self: center;
+        justify-self: center;
+        min-height: 0;
+    }
+
+    /* 絵の大きさは画面の高さから決める（下の残り時間の分も引く） */
+    .view--plate { width: min(100%, var(--h)); }
+    .view--glass { gap: 12px; }
+    .glass { width: auto; height: calc(var(--h) - 90px); }
+    .sky { width: min(100%, calc((var(--h) - 90px) * 1.6)); }
+    .scene { width: min(100%, calc((var(--h) - 90px) * 320 / 220)); }
+
+    /* 集中モード（絵だけ）：1列にして、画面の中央に大きく */
+    body.is-zen .page {
+        max-width: none;
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        grid-template-areas: "visual";
+    }
+    body.is-zen .view--plate { width: min(100%, calc(100dvh - 64px)); }
+    body.is-zen .glass { height: calc(100dvh - 64px); }
+    body.is-zen .sky { max-width: none; width: min(100%, calc((100dvh - 64px) * 1.6)); }
+    body.is-zen .scene { max-width: none; width: min(100%, calc((100dvh - 64px) * 320 / 220)); }
+}
+
+/* 大きいPC画面では、右の操作の列も少し大きく */
+@media (orientation: landscape) and (min-width: 1280px) and (min-height: 760px) {
+    body:not(.is-zen) .top,
+    body:not(.is-zen) .plan,
+    body:not(.is-zen) .actions,
+    body:not(.is-zen) .hint { zoom: 1.15; }
+}
